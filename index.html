@@ -3,79 +3,187 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Uma mensagem especial</title>
+    <title>Gazeta do Amor - Edição Extra</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Chomsky&family=Old+Standard+TT:ital,wght@0,400;0,700;1,400&family=Playfair+Display:wght@900&display=swap" rel="stylesheet">
+
     <style>
-        /* Configurações gerais da página para centralizar tudo */
-        body, html {
-            height: 100%;
+        /* --- Configurações Gerais e Textura de Papel --- */
+        body {
             margin: 0;
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            /* Um degradê suave e romântico de fundo */
-            background: linear-gradient(135deg, #fff1eb 0%, #ace0f9 100%);
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            padding: 20px;
+            /* Cor de fundo amarelada e um gradiente para escurecer as bordas (efeito envelhecido) */
+            background-color: #f4e4bc;
+            background-image: radial-gradient(circle, rgba(244,228,188,0.1) 0%, rgba(189,168,126,0.4) 100%);
+            color: #2c2115; /* Preto desbotado, tipo tinta velha */
+            font-family: 'Old Standard TT', serif; /* Fonte padrão do corpo do texto */
+            line-height: 1.4;
         }
 
-        /* O "cartão" branco onde fica o texto */
-        .cartao-mensagem {
-            background-color: rgba(255, 255, 255, 0.95); /* Branco quase sólido */
-            padding: 50px;
-            border-radius: 25px; /* Bordas arredondadas */
-            box-shadow: 0 15px 35px rgba(0,0,0,0.1); /* Sombra suave */
+        /* Container principal que segura o jornal */
+        .container-jornal {
+            max-width: 900px;
+            margin: 0 auto;
+            border: 3px double #2c2115; /* Borda dupla clássica */
+            padding: 20px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.2);
+        }
+
+        /* --- Cabeçalho (Masthead) --- */
+        header {
             text-align: center;
-            max-width: 90%; /* Para não ficar muito largo no celular */
-            width: 500px;
-            border: 1px solid rgba(255, 255, 255, 0.3);
-        }
-
-        /* Título principal */
-        h1 {
-            color: #333;
-            font-size: 2.5rem;
+            border-bottom: 4px solid #2c2115;
             margin-bottom: 20px;
+            padding-bottom: 10px;
         }
 
-        /* O texto normal */
-        p.texto-normal {
-            color: #555;
-            font-size: 1.5rem;
-            line-height: 1.5;
+        h1.titulo-jornal {
+            font-family: 'Chomsky', serif; /* Fonte estilo Gótico */
+            font-size: 4rem;
+            margin: 0;
+            letter-spacing: 2px;
+        }
+
+        .data-linha {
+            display: flex;
+            justify-content: space-between;
+            border-top: 2px solid #2c2115;
+            border-bottom: 2px solid #2c2115;
+            padding: 5px 0;
+            margin-top: 10px;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 0.9rem;
+        }
+
+        /* --- Manchete Principal --- */
+        .manchete-principal {
+            text-align: center;
             margin-bottom: 30px;
         }
 
-        /* A mensagem de amor destacada */
-        p.mensagem-amor {
-            color: #d63384; /* Um tom de rosa/vermelho bonito */
-            font-size: 2.2rem;
-            font-weight: bold;
-            margin-top: 20px;
-            text-shadow: 1px 1px 2px rgba(214, 51, 132, 0.2);
+        .manchete-principal h2 {
+            font-family: 'Playfair Display', serif;
+            font-size: 3rem;
+            text-transform: uppercase;
+            line-height: 1;
+            margin: 20px 0 10px 0;
         }
 
-        /* Animaçãozinha opcional no coração */
-        .heart {
-            display: inline-block;
-            animation: heartbeat 1.5s infinite;
+        .sub-manchete {
+            font-size: 1.3rem;
+            font-style: italic;
+            margin-bottom: 20px;
         }
-        @keyframes heartbeat {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.2); }
-            100% { transform: scale(1); }
+
+        /* --- Layout de Colunas --- */
+        .conteudo-colunas {
+            display: grid;
+            /* Cria 3 colunas no PC, a do meio é mais larga */
+            grid-template-columns: 1fr 2fr 1fr;
+            gap: 30px;
+            text-align: justify; /* Texto justificado como em jornais */
+        }
+
+        /* Linhas divisórias verticais entre colunas */
+        .coluna-esquerda, .coluna-centro {
+             border-right: 1px solid #2c2115;
+             padding-right: 30px;
+        }
+
+        /* Títulos das seções menores */
+        h3 {
+            font-family: 'Playfair Display', serif;
+            text-transform: uppercase;
+            border-bottom: 2px solid #2c2115;
+            margin-top: 0;
+        }
+
+        /* A caixa de destaque da mensagem de amor */
+        .caixa-destaque {
+            border: 3px solid #2c2115;
+            padding: 15px;
+            margin: 20px 0;
+            text-align: center;
+            background-color: rgba(44, 33, 21, 0.1); /* Um pouco mais escuro */
+        }
+
+        .mensagem-amor-jornal {
+            font-size: 1.8rem;
+            font-weight: bold;
+            font-style: italic;
+        }
+
+        /* --- Responsividade (Para Celular) --- */
+        @media (max-width: 768px) {
+            h1.titulo-jornal { font-size: 2.5rem; }
+            .manchete-principal h2 { font-size: 2rem; }
+            /* No celular, as colunas viram uma pilha única */
+            .conteudo-colunas {
+                grid-template-columns: 1fr;
+            }
+            .coluna-esquerda, .coluna-centro {
+                border-right: none;
+                border-bottom: 1px solid #2c2115;
+                padding-right: 0;
+                padding-bottom: 20px;
+            }
         }
     </style>
 </head>
 <body>
 
-    <div class="cartao-mensagem">
-        <h1>🎉 Funcionou!</h1>
-        <p class="texto-normal">
-            Juh, conseguiii
-        </p>
-        <hr style="border: 0; border-top: 2px solid #ffebf0; margin: 30px 0;">
-        <p class="mensagem-amor">
-            <span class="heart">❤️</span>
-        </p>
+    <div class="container-jornal">
+        <header>
+            <h1 class="titulo-jornal">Gazeta do Amor</h1>
+            <div class="data-linha">
+                <span>Edição Extraordinária</span>
+                <span>Internet, 2024</span>
+                <span>Preço: Um Sorriso</span>
+            </div>
+        </header>
+
+        <article class="manchete-principal">
+            <h2>EXTRA! EXTRA! O SITE FUNCIONOU!</h2>
+            <div class="sub-manchete">
+                Após horas de negociações intensas com os servidores DNS, o domínio Animamochi.com.br finalmente está no ar.
+            </div>
+        </article>
+
+        <section class="conteudo-colunas">
+            
+            <div class="coluna-esquerda">
+                <h3>Notícias Breves</h3>
+                <p><strong>O Mistério do TXT:</strong> Fontes confirmam que um código secreto precisou ser inserido nos registros globais da internet para liberar o acesso. Especialistas chamam o feito de "um clique de sorte".</p>
+                <p><strong>Café em Alta:</strong> O consumo de café aumentou drasticamente durante o processo de configuração do site. Nenhuma xícara foi poupada.</p>
+            </div>
+
+            <div class="coluna-centro">
+                <h3>Reportagem Especial</h3>
+                <p>Em um evento que parou a rede local, o programador (e artista louco) responsável por este domínio conseguiu superar as barreiras da tecnologia. O que parecia apenas uma tela branca de erro "404" transformou-se, miraculosamente, em uma página funcional.</p>
+                
+                <p>A motivação por trás de tamanho esforço técnico foi finalmente revelada em uma declaração oficial emitida nesta tarde. Não se tratava apenas de bits e bytes, mas de uma mensagem urgente que precisava ser entregue em grande estilo.</p>
+
+                <div class="caixa-destaque">
+                    <p>DECLARAÇÃO OFICIAL:</p>
+                    <p class="mensagem-amor-jornal">
+                        "Ju, eu consegui criar o site! <br> E, mais importante que isso: Eu te amo demais."
+                    </p>
+                </div>
+                <p>Espera-se que a destinatária da mensagem sorria ao ler esta edição especial.</p>
+            </div>
+
+            <div class="coluna-direita">
+                <h3>Classificados</h3>
+                <p><strong>PROCURA-SE:</strong> Beijos e abraços como recompensa pelo trabalho de TI bem-sucedido.</p>
+                <hr>
+                <h3>Previsão do Tempo</h3>
+                <p>O tempo hoje segue com clima de romance e alta probabilidade de felicidade para o casal.</p>
+            </div>
+
+        </section>
     </div>
 
 </body>
