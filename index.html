@@ -3,132 +3,161 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gazeta do Amor - Edição Extra</title>
+    <title>Animamochi - Diário</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Chomsky&family=Old+Standard+TT:ital,wght@0,400;0,700;1,400&family=Playfair+Display:wght@900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Chomsky&family=Old+Standard+TT:ital,wght@0,400;0,700;1,400&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
 
     <style>
-        /* --- Configurações Gerais e Textura de Papel --- */
+        /* --- Estilo Base de Jornal Antigo (Mantido) --- */
+        :root {
+            --cor-papel: #f4e4bc;
+            --cor-tinta: #2c2115; /* Marrom escuro */
+            --cor-link-hover: #7a2e15; /* Vermelho escuro para links */
+        }
+
         body {
             margin: 0;
             padding: 20px;
-            /* Cor de fundo amarelada e um gradiente para escurecer as bordas (efeito envelhecido) */
-            background-color: #f4e4bc;
-            background-image: radial-gradient(circle, rgba(244,228,188,0.1) 0%, rgba(189,168,126,0.4) 100%);
-            color: #2c2115; /* Preto desbotado, tipo tinta velha */
-            font-family: 'Old Standard TT', serif; /* Fonte padrão do corpo do texto */
-            line-height: 1.4;
+            background-color: var(--cor-papel);
+            background-image: radial-gradient(circle at center, rgba(244,228,188,0.2) 0%, rgba(189,168,126,0.5) 100%);
+            color: var(--cor-tinta);
+            font-family: 'Old Standard TT', serif;
+            line-height: 1.5;
         }
 
-        /* Container principal que segura o jornal */
         .container-jornal {
-            max-width: 900px;
+            max-width: 1100px; /* Um pouco mais largo para acomodar as duas colunas */
             margin: 0 auto;
-            border: 3px double #2c2115; /* Borda dupla clássica */
-            padding: 20px;
-            box-shadow: 0 0 20px rgba(0,0,0,0.2);
+            border: 4px double var(--cor-tinta);
+            padding: 25px;
+            background-color: rgba(255, 255, 255, 0.1); /* Leve clareamento no centro */
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
         }
 
-        /* --- Cabeçalho (Masthead) --- */
+        /* --- Cabeçalho --- */
         header {
             text-align: center;
-            border-bottom: 4px solid #2c2115;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
-        }
-
-        h1.titulo-jornal {
-            font-family: 'Chomsky', serif; /* Fonte estilo Gótico */
-            font-size: 4rem;
-            margin: 0;
-            letter-spacing: 2px;
-        }
-
-        .data-linha {
-            display: flex;
-            justify-content: space-between;
-            border-top: 2px solid #2c2115;
-            border-bottom: 2px solid #2c2115;
-            padding: 5px 0;
-            margin-top: 10px;
-            font-weight: bold;
-            text-transform: uppercase;
-            font-size: 0.9rem;
-        }
-
-        /* --- Manchete Principal --- */
-        .manchete-principal {
-            text-align: center;
+            border-bottom: 3px solid var(--cor-tinta);
             margin-bottom: 30px;
+            padding-bottom: 15px;
         }
 
-        .manchete-principal h2 {
-            font-family: 'Playfair Display', serif;
-            font-size: 3rem;
-            text-transform: uppercase;
-            line-height: 1;
-            margin: 20px 0 10px 0;
+        h1.titulo-principal {
+            font-family: 'Chomsky', serif; /* Fonte Gótica */
+            font-size: 3.5rem;
+            margin: 0;
+            letter-spacing: 1px;
         }
 
-        .sub-manchete {
-            font-size: 1.3rem;
+        .subtitulo-header {
             font-style: italic;
-            margin-bottom: 20px;
+            font-weight: bold;
+            margin-top: 10px;
+            border-top: 1px solid var(--cor-tinta);
+            padding-top: 10px;
+            display: block;
         }
 
-        /* --- Layout de Colunas --- */
-        .conteudo-colunas {
+        /* --- Layout de Duas Colunas (Grid) --- */
+        .layout-blog {
             display: grid;
-            /* Cria 3 colunas no PC, a do meio é mais larga */
-            grid-template-columns: 1fr 2fr 1fr;
-            gap: 30px;
-            text-align: justify; /* Texto justificado como em jornais */
+            /* Define as colunas: a primeira tem 250px, a segunda pega o resto */
+            grid-template-columns: 250px 1fr;
+            gap: 40px; /* Espaço entre as colunas */
+            align-items: start;
         }
 
-        /* Linhas divisórias verticais entre colunas */
-        .coluna-esquerda, .coluna-centro {
-             border-right: 1px solid #2c2115;
-             padding-right: 30px;
+        /* --- Coluna 1: Barra Lateral (Navegação) --- */
+        .coluna-sidebar {
+            border-right: 2px dashed var(--cor-tinta); /* Linha pontilhada separando */
+            padding-right: 20px;
         }
 
-        /* Títulos das seções menores */
-        h3 {
+        .coluna-sidebar h3 {
             font-family: 'Playfair Display', serif;
             text-transform: uppercase;
-            border-bottom: 2px solid #2c2115;
+            border-bottom: 2px solid var(--cor-tinta);
             margin-top: 0;
         }
 
-        /* A caixa de destaque da mensagem de amor */
-        .caixa-destaque {
-            border: 3px solid #2c2115;
-            padding: 15px;
-            margin: 20px 0;
-            text-align: center;
-            background-color: rgba(44, 33, 21, 0.1); /* Um pouco mais escuro */
+        .lista-links {
+            list-style-type: none; /* Remove as bolinhas da lista */
+            padding: 0;
+            margin: 0;
         }
 
-        .mensagem-amor-jornal {
-            font-size: 1.8rem;
+        .lista-links li {
+            margin-bottom: 15px;
+        }
+
+        .lista-links a {
+            text-decoration: none;
+            color: var(--cor-tinta);
             font-weight: bold;
+            display: block;
+            transition: color 0.2s;
+        }
+
+        /* Efeito ao passar o mouse nos links */
+        .lista-links a:hover {
+            color: var(--cor-link-hover);
+            text-decoration: underline dotted;
+        }
+
+
+        /* --- Coluna 2: Principal (Posts) --- */
+        .coluna-principal {
+            padding-left: 10px;
+        }
+
+        /* Estilo de um Post Individual */
+        .post-item {
+            margin-bottom: 50px; /* Espaço entre um post e outro */
+        }
+
+        .post-data {
+            font-size: 0.9rem;
             font-style: italic;
+            opacity: 0.8;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .post-titulo {
+            font-family: 'Playfair Display', serif;
+            font-size: 2rem;
+            margin: 5px 0 20px 0;
+            line-height: 1.1;
+        }
+
+        .post-conteudo {
+            font-size: 1.1rem;
+            text-align: justify;
+        }
+
+        /* Separador estiloso entre posts */
+        hr.separador-post {
+            border: 0;
+            height: 2px;
+            background-image: linear-gradient(to right, rgba(0,0,0,0), var(--cor-tinta), rgba(0,0,0,0));
+            margin-top: 40px;
         }
 
         /* --- Responsividade (Para Celular) --- */
         @media (max-width: 768px) {
-            h1.titulo-jornal { font-size: 2.5rem; }
-            .manchete-principal h2 { font-size: 2rem; }
-            /* No celular, as colunas viram uma pilha única */
-            .conteudo-colunas {
+            h1.titulo-principal { font-size: 2.5rem; }
+            /* No celular, empilha as colunas */
+            .layout-blog {
                 grid-template-columns: 1fr;
             }
-            .coluna-esquerda, .coluna-centro {
+            .coluna-sidebar {
                 border-right: none;
-                border-bottom: 1px solid #2c2115;
+                border-bottom: 2px dashed var(--cor-tinta);
                 padding-right: 0;
                 padding-bottom: 20px;
+                margin-bottom: 30px;
             }
         }
     </style>
@@ -136,54 +165,50 @@
 <body>
 
     <div class="container-jornal">
+        
         <header>
-            <h1 class="titulo-jornal">Gazeta do Amor</h1>
-            <div class="data-linha">
-                <span>Edição Extraordinária</span>
-                <span>Internet, 2024</span>
-                <span>Preço: Um Sorriso</span>
-            </div>
+            <h1 class="titulo-principal">Animamochi</h1>
+            <span class="subtitulo-header">Estudos e Conhecimento sobre Animação Frame a Frame</span>
         </header>
 
-        <article class="manchete-principal">
-            <h2>EXTRA! EXTRA! O SITE FUNCIONOU!</h2>
-            <div class="sub-manchete">
-                Após horas de negociações intensas com os servidores DNS, o domínio Animamochi.com.br finalmente está no ar.
-            </div>
-        </article>
+        <main class="layout-blog">
 
-        <section class="conteudo-colunas">
-            
-            <div class="coluna-esquerda">
-                <h3>Notícias Breves</h3>
-                <p><strong>O Mistério do TXT:</strong> Fontes confirmam que um código secreto precisou ser inserido nos registros globais da internet para liberar o acesso. Especialistas chamam o feito de "um clique de sorte".</p>
-                <p><strong>Café em Alta:</strong> O consumo de café aumentou drasticamente durante o processo de configuração do site. Nenhuma xícara foi poupada.</p>
-            </div>
+            <aside class="coluna-sidebar">
+                <h3>Índice de Arquivos</h3>
+                <ul class="lista-links">
+                    <li><a href="#01">01</a></li>
+					<li><a href="#02">02</a></li>
+                    </ul>
+            </aside>
 
-            <div class="coluna-centro">
-                <h3>Reportagem Especial</h3>
-                <p>Em um evento que parou a rede local, o programador (e artista louco) responsável por este domínio conseguiu superar as barreiras da tecnologia. O que parecia apenas uma tela branca de erro "404" transformou-se, miraculosamente, em uma página funcional.</p>
-                
-                <p>A motivação por trás de tamanho esforço técnico foi finalmente revelada em uma declaração oficial emitida nesta tarde. Não se tratava apenas de bits e bytes, mas de uma mensagem urgente que precisava ser entregue em grande estilo.</p>
 
-                <div class="caixa-destaque">
-                    <p>DECLARAÇÃO OFICIAL:</p>
-                    <p class="mensagem-amor-jornal">
-                        "Ju, eu consegui criar o site! <br> E, mais importante que isso: Eu te amo demais."
-                    </p>
-                </div>
-                <p>Espera-se que a destinatária da mensagem sorria ao ler esta edição especial.</p>
-            </div>
+            <section class="coluna-principal">
 
-            <div class="coluna-direita">
-                <h3>Classificados</h3>
-                <p><strong>PROCURA-SE:</strong> Beijos e abraços como recompensa pelo trabalho de TI bem-sucedido.</p>
-                <hr>
-                <h3>Previsão do Tempo</h3>
-                <p>O tempo hoje segue com clima de romance e alta probabilidade de felicidade para o casal.</p>
-            </div>
+                <article class="post-item" id="02">
+                    <span class="post-data">03 de Janeiro de 2026</span>
+                    
+                    <h2 class="post-titulo">Post de Inicio 02</h2>
+                    
+                    <div class="post-conteudo">
+                        <p>Teste</p><p>Teste</p><p>Teste</p><p>Teste</p><p>Teste</p><p>Teste</p><p>Teste</p><p>Teste</p><p>Teste</p><p>Teste</p><p>Teste</p><p>Teste</p><p>Teste</p>
+                       
+                    </div>
 
-        </section>
+                    <hr class="separador-post">
+                </article>
+                <article class="post-item" id="01">
+                    <span class="post-data">01 de Janeiro de 2024</span>
+                    <h2 class="post-titulo">Post de numero 01</h2>
+                    <div class="post-conteudo">
+                        <p>Teste</p><p>Teste</p><p>Teste</p><p>Teste</p><p>Teste</p><p>Teste</p><p>Teste</p><p>Teste</p><p>Teste</p><p>Teste</p>
+                    </div>
+                    <hr class="separador-post">
+                </article>
+
+            </section>
+
+        </main>
+
     </div>
 
 </body>
