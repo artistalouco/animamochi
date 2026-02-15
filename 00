@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>00. Animação em 3 Pontos</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div id="sidebar-container" class="container"></div>
+
+    <main>
+        <article class="post-content">
+            <h2>00. Animação em três Pontos de Fuga</h2>
+            <p>Aqui vai o texto sobre perspectiva...</p>
+            </article>
+    </main>
+
+    <script src="menu.js"></script>
+</body>
+</html>
