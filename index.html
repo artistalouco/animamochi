@@ -3,40 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapa Hexagonal RPG</title>
+    <title>Técnicas de Animação Frame a Frame</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <div class="controls">
-        <h1>Mesa Tática Hexagonal</h1>
-        <p>Clique em um hexágono vazio para adicionar. Clique em um token para selecionar/mover/editar.</p>
-        <button onclick="exportMap()">Salvar Mapa (JSON)</button>
-        <button onclick="importMap()">Carregar Mapa</button>
-        <button class="danger" onclick="clearMap()">Limpar Tudo</button>
-    </div>
+    <div id="sidebar-container" class="container"></div>
 
-    <div id="hex-grid" class="hex-grid"></div>
+    <main>
+        <article class="post-content">
+            <h2>Bem-vindo.</h2>
+            <p>Selecione um tópico ao lado para ler sobre meus processos de animação.</p>
+            <p>Este site documenta técnicas de perspectiva, timing e workflow na Unity.</p>
+        </article>
+    </main>
 
-    <div id="token-modal" class="modal hidden">
-        <div class="modal-content">
-            <h3>Configurar Token</h3>
-            <input type="hidden" id="selected-hex-id">
-            
-            <label>URL da Imagem:</label>
-            <input type="text" id="token-img" placeholder="https://exemplo.com/heroi.png">
-            
-            <label>Condição / Status:</label>
-            <input type="text" id="token-condition" placeholder="Ex: Envenenado, Voando...">
-            
-            <div class="modal-buttons">
-                <button onclick="saveToken()">Salvar</button>
-                <button class="delete" onclick="deleteToken()">Remover Token</button>
-                <button class="cancel" onclick="closeModal()">Cancelar</button>
-            </div>
-        </div>
-    </div>
-
-    <script src="script.js"></script>
+    <script src="menu.js"></script>
 </body>
 </html>
