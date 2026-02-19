@@ -2,6 +2,8 @@
 const menuHTML = `
 <aside class="sidebar">
     <header>
+        <img src="imgs/logo.png" alt="Logo Animamochi" width="280" height="167" class="logo-sidebar">
+        
         <h1>Técnicas de Animação<br>Frame a Frame</h1>
         <p class="subtitle">Notas de produção e estudos</p>
     </header>
@@ -9,8 +11,8 @@ const menuHTML = `
     <nav>
         <ul>
             <li><a href="index.html" class="nav-link">Início</a></li>
-            
-            <li><a href="00.html" class="nav-link">00. Animação em 3 Pontos</a></li>
+            <li><a href="tsuke.html" class="nav-link">Follow Pan/ Tsuke Pan no Clip Studio Paint</a></li>
+            <li><a href="00.html" class="nav-link">Animação em 3 Pontos com Tsuke Pan</a></li>
             
         </ul>
     </nav>
