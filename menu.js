@@ -11,6 +11,7 @@ const menuHTML = `
     <nav>
         <ul>
             <li><a href="index.html" class="nav-link">Início</a></li>
+			<li><a href="01.html" class="nav-link">LO/Genga e Nigen</a></li>
             <li><a href="tsuke.html" class="nav-link">Follow Pan/ Tsuke Pan no Clip Studio Paint</a></li>
             <li><a href="00.html" class="nav-link">Animação em 3 Pontos com Tsuke Pan</a></li>
             
