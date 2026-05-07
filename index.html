@@ -6,7 +6,6 @@
     <style>
         body { font-family: sans-serif; display: flex; gap: 20px; padding: 20px; background: #e0e0e0; margin: 0; height: 100vh; box-sizing: border-box; }
         
-        /* PAINEL ESQUERDO: Canvas e Arquivos */
         .player-area { flex: 1.2; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
         .controls { background: white; padding: 15px; border-radius: 5px; border: 1px solid #ccc; }
         
@@ -23,7 +22,6 @@
         .canvas-container { flex: 1; position: relative; width: 100%; background: #e8e8e8; border: 2px solid #333; overflow: hidden; display: flex; align-items: center; justify-content: center; }
         canvas { width: 100%; height: 100%; object-fit: contain; }
 
-        /* PAINEL DIREITO: X-Sheet e Controles */
         .xsheet-area { flex: 1; display: flex; flex-direction: column; background: white; border: 1px solid #ccc; box-shadow: 0 4px 8px rgba(0,0,0,0.1); height: 100%; overflow: hidden; }
         
         .xsheet-header { display: flex; gap: 15px; padding: 10px; background: #f8f8f8; border-bottom: 2px solid #ccc; align-items: stretch; }
@@ -38,7 +36,6 @@
         #btnPause { background: #FF9800; color: white; }
         #btnStop { background: #F44336; color: white; }
         
-        /* Botões da ferramenta de desenho */
         #btnDraw { background: #2196F3; color: white; }
         #btnDraw.active { background: #0D47A1; box-shadow: inset 0 0 10px rgba(0,0,0,0.5); border: 1px solid white; }
         #btnClearDraw { background: #757575; color: white; }
@@ -48,46 +45,77 @@
         .general-memo-box textarea { flex: 1; resize: none; border: 1px solid #ccc; border-radius: 3px; padding: 5px; font-family: sans-serif; font-size: 0.85em; background: #ffffcc; outline: none; }
         .general-memo-box textarea:focus { background: #fff099; }
 
-        /* TABELA X-SHEET */
         .table-scroll { flex: 1; overflow: auto; position: relative; }
-        table { border-collapse: collapse; width: 100%; text-align: center; table-layout: fixed; min-width: 350px; position: relative; z-index: 1; }
-        th, td { border: 1px solid #999; padding: 1px 2px; height: 18px; overflow: hidden; white-space: nowrap; }
-        th { background: #d0e4f5; position: sticky; top: 0; z-index: 3; box-shadow: 0 2px 2px rgba(0,0,0,0.1); font-size: 0.8em; }
+        table { border-collapse: collapse; width: 100%; text-align: center; table-layout: fixed; min-width: 380px; position: relative; z-index: 1; user-select: none; }
+        th, td { border: 1px solid #999; padding: 1px 2px; height: 18px; white-space: nowrap; }
+        td { overflow: hidden; } /* Aplicado apenas em TDs para as pílulas de Book não serem cortadas */
+        
+        /* O th agora aceita elementos vazando (overflow: visible) para as etiquetas do Book */
+        th { background: #d0e4f5; position: sticky; top: 0; z-index: 3; box-shadow: 0 2px 2px rgba(0,0,0,0.1); font-size: 0.75em; overflow: visible; }
         
         td.sec-col { background: #f0f0f0; color: #999; font-size: 0.55em; font-weight: bold; border: 1px solid #e6e6e6; }
-        td.frame-col { background: #e8e8e8; font-weight: bold; cursor: pointer; font-size: 0.8em; color: #666; border: 1px solid #dcdcdc; }
-        
-        .editable-col { cursor: text; outline: none; font-size: 0.8em; }
-        .editable-col:focus { background: #e8f4ff; box-shadow: inset 0 0 0 2px #0078d7; }
-        
-        .memo-col { background: #ffffcc !important; text-align: left; padding-left: 5px; font-size: 0.8em; }
-        .memo-col:focus { background: #fff099 !important; }
+        td.frame-col { 
+    background: #e8e8e8; 
+    font-weight: bold; 
+    cursor: ns-resize; /* Cursor de redimensionamento vertical (norte-sul) */
+    font-size: 0.8em; 
+    color: #666; 
+    border: 1px solid #dcdcdc; 
+    user-select: none; /* Previne a seleção acidental de texto ao arrastar */
+}
 
-        /* Canvas de desenho sobre a tabela */
+/* Força o cursor de 'agarrando' em toda a tela enquanto o arrasto acontece */
+body.scrubbing-active, 
+body.scrubbing-active td.frame-col {
+    cursor: grabbing !important;
+}
+        
+        .editable-col { cursor: text; outline: none; font-size: 0.8em; user-select: text; }
+        
+        .selected-cell { background-color: #bbdefb !important; box-shadow: inset 0 0 0 1px #1976d2; }
+        .memo-col { background: #ffffcc !important; text-align: left; padding-left: 5px; font-size: 0.8em; }
+        .selected-cell.memo-col { background-color: #d1eaff !important; }
+
         #drawLayer { position: absolute; top: 0; left: 0; z-index: 2; pointer-events: none; }
         .drawing-mode #drawLayer { pointer-events: auto; cursor: crosshair; }
 
-        /* PADRÃO DE CORES BY 3s */
-        tr:nth-child(3n+1) td.editable-col:not(.memo-col) { background-color: #ffffff; }
-        tr:nth-child(3n+2) td.editable-col:not(.memo-col) { background-color: #f9f9f9; }
-        tr:nth-child(3n) td.editable-col:not(.memo-col) { background-color: #ececec; }
+        /* NOVA: Etiqueta invisível/flutuante para os Books no cabeçalho */
+        .book-input {
+            position: absolute;
+            top: -16px; /* Flutua um pouco acima da letra da Coluna */
+            right: -13px; /* Centraliza perfeitamente na linha divisória */
+            width: 24px;
+            height: 14px;
+            font-size: 8px;
+            font-weight: bold;
+            text-align: center;
+            background: #e1bee7; /* Roxo sutil */
+            border: 1px solid #ab47bc;
+            color: #4a148c;
+            border-radius: 6px;
+            z-index: 10;
+            padding: 0;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+            transition: all 0.2s ease;
+        }
+        .book-input::placeholder { color: #ba68c8; font-weight: normal; }
+        .book-input:focus {
+            width: 45px;
+            right: -23px; /* Mantém centralizado quando cresce */
+            font-size: 10px;
+            background: #fff;
+            outline: none;
+            box-shadow: 0 0 5px #ab47bc;
+            z-index: 11;
+        }
 
+        tr:nth-child(3n+1) td.editable-col:not(.memo-col):not(.selected-cell) { background-color: #ffffff; }
+        tr:nth-child(3n+2) td.editable-col:not(.memo-col):not(.selected-cell) { background-color: #f9f9f9; }
+        tr:nth-child(3n) td.editable-col:not(.memo-col):not(.selected-cell) { background-color: #ececec; }
         tr:nth-child(24n) td { border-bottom: 2px solid #555 !important; }
         
-        /* LINHA ATIVA COM 40% DE TRANSPARÊNCIA (RGBA) */
-        .active-row td { 
-            border-top: 1px solid red !important; 
-            border-bottom: 1px solid red !important; 
-            background-color: rgba(255, 0, 0, 0.4) !important; 
-        }
-
-        /* Estilo para o marcador de Inbetween "/" */
-        .inbetween-mark {
-            color: #E91E63 !important; 
-            font-weight: 900 !important;
-            background-color: #fce4ec !important;
-            font-size: 1em !important; 
-        }
+        .active-row td { border-top: 1px solid red !important; border-bottom: 1px solid red !important; background-color: rgba(255, 0, 0, 0.4) !important; }
+        .inbetween-mark { color: #E91E63 !important; font-weight: 900 !important; font-size: 1em !important; }
     </style>
 </head>
 <body>
@@ -130,29 +158,35 @@
             <canvas id="drawLayer"></canvas>
             <table id="xsheetTable">
                 <colgroup>
-                    <col style="width: 20px;">
-                    <col style="width: 28px;">
-                    <col style="width: 24px;"> 
-                    <col style="width: 24px;">
-                    <col style="width: 24px;">
-                    <col style="width: 24px;">
-                    <col style="width: 24px;">
-                    <col style="width: 24px;">
-                    <col style="width: 100px;">
-                    <col style="width: 35px;">
-                    <col style="width: 35px;">
-                </colgroup>
+                    <col style="width: 20px;"> <col style="width: 28px;"> <col style="width: 24px;"> <col style="width: 24px;"> <col style="width: 24px;"> <col style="width: 24px;"> <col style="width: 24px;"> <col style="width: 24px;"> <col style="width: 24px;"> <col style="width: 100px;"> <col style="width: 35px;"> <col style="width: 35px;"> </colgroup>
                 <thead>
                     <tr>
-                        <th rowspan="2" style="font-size: 0.7em;">Sec</th>
+                        <th rowspan="2">Sec</th>
                         <th rowspan="2">Fr</th>
-                        <th colspan="6">Keys</th>
+                        <th colspan="7"></th>
                         <th rowspan="2" style="background: #ffffcc;">Dialog</th>
                         <th colspan="2">Camera</th>
                     </tr>
                     <tr>
-                        <th>A</th><th>B</th><th>C</th><th>D</th><th>E</th><th>F</th>
-                        <th></th><th></th>
+                        <th style="position: relative;">BG
+                            <input type="text" class="book-input" id="bk-bg-a" placeholder="Bk">
+                        </th>
+                        <th style="position: relative;">A
+                            <input type="text" class="book-input" id="bk-a-b" placeholder="Bk">
+                        </th>
+                        <th style="position: relative;">B
+                            <input type="text" class="book-input" id="bk-b-c" placeholder="Bk">
+                        </th>
+                        <th style="position: relative;">C
+                            <input type="text" class="book-input" id="bk-c-d" placeholder="Bk">
+                        </th>
+                        <th style="position: relative;">D
+                            <input type="text" class="book-input" id="bk-d-e" placeholder="Bk">
+                        </th>
+                        <th style="position: relative;">E
+                            <input type="text" class="book-input" id="bk-e-f" placeholder="Bk">
+                        </th>
+                        <th>F</th>
                     </tr>
                 </thead>
                 <tbody id="xsheetBody"></tbody>
@@ -187,6 +221,7 @@
                 let secText = (i % 24 === 0) ? (i / 24) + 's' : '';
                 row.innerHTML += `<td class="sec-col">${secText}</td>`;
                 row.innerHTML += `<td class="frame-col" onclick="goToFrame(${i})">${i}</td>`;
+                row.innerHTML += `<td class="editable-col col-bg" contenteditable="true"></td>`;
                 row.innerHTML += `<td class="editable-col col-a" contenteditable="true"></td>`;
                 row.innerHTML += `<td class="editable-col col-b" contenteditable="true"></td>`;
                 row.innerHTML += `<td class="editable-col col-c" contenteditable="true"></td>`;
@@ -209,7 +244,6 @@
                 tempCanvas.getContext('2d').drawImage(drawLayer, 0, 0);
             }
             
-            // Trava o tamanho interno e externo do canvas para evitar distorção do mouse
             drawLayer.width = xsheetTable.offsetWidth;
             drawLayer.height = xsheetTable.offsetHeight;
             drawLayer.style.width = xsheetTable.offsetWidth + 'px';
@@ -222,14 +256,141 @@
 
         buildXSheet();
 
-        // Lógica de Pulo By 3s
+        // ATUALIZAÇÃO DO VISOR AO EDITAR UM BOOK
+        document.querySelectorAll('.book-input').forEach(input => {
+            input.addEventListener('input', updateVisor);
+        });
+
+        // SELEÇÃO E COPY/PASTE (MANTIDO DO ANTERIOR)
+        let isSelectingCells = false;
+        let startCellCoords = null;
+        let endCellCoords = null;
+
+        xsheetTable.addEventListener('mousedown', (e) => {
+            if (isDrawingMode) return;
+            if (e.target.classList.contains('editable-col')) {
+                if (e.button !== 0) return; 
+                isSelectingCells = true;
+                startCellCoords = { r: e.target.parentElement.rowIndex, c: e.target.cellIndex };
+                endCellCoords = { r: e.target.parentElement.rowIndex, c: e.target.cellIndex };
+                drawCellSelection();
+            }
+        });
+
+        xsheetTable.addEventListener('mouseover', (e) => {
+            if (isSelectingCells && e.target.classList.contains('editable-col')) {
+                endCellCoords = { r: e.target.parentElement.rowIndex, c: e.target.cellIndex };
+                window.getSelection().removeAllRanges(); 
+                drawCellSelection();
+            }
+        });
+
+        window.addEventListener('mouseup', () => isSelectingCells = false);
+
+        xsheetBody.addEventListener('focusin', (e) => {
+            if (e.target.classList.contains('editable-col') && !isSelectingCells) {
+                document.querySelectorAll('.selected-cell').forEach(c => c.classList.remove('selected-cell'));
+                e.target.classList.add('selected-cell');
+                startCellCoords = { r: e.target.parentElement.rowIndex, c: e.target.cellIndex };
+                endCellCoords = { r: e.target.parentElement.rowIndex, c: e.target.cellIndex };
+            }
+        });
+
+        function drawCellSelection() {
+            document.querySelectorAll('.selected-cell').forEach(c => c.classList.remove('selected-cell'));
+            if (!startCellCoords || !endCellCoords) return;
+            let rMin = Math.min(startCellCoords.r, endCellCoords.r);
+            let rMax = Math.max(startCellCoords.r, endCellCoords.r);
+            let cMin = Math.min(startCellCoords.c, endCellCoords.c);
+            let cMax = Math.max(startCellCoords.c, endCellCoords.c);
+            for (let r = rMin; r <= rMax; r++) {
+                let row = xsheetTable.rows[r];
+                if (!row) continue;
+                for (let c = cMin; c <= cMax; c++) {
+                    let cell = row.cells[c];
+                    if (cell && cell.classList.contains('editable-col')) cell.classList.add('selected-cell');
+                }
+            }
+        }
+
+        document.addEventListener('copy', (e) => {
+            if (document.activeElement.tagName === 'TEXTAREA' || document.activeElement.tagName === 'INPUT') return;
+            let selected = document.querySelectorAll('.selected-cell');
+            if (selected.length > 0) {
+                if (selected.length === 1 && window.getSelection().toString() !== "") return;
+                let rMin = Infinity, rMax = -Infinity, cMin = Infinity, cMax = -Infinity;
+                selected.forEach(cell => {
+                    let r = cell.parentElement.rowIndex, c = cell.cellIndex;
+                    if(r < rMin) rMin = r; if(r > rMax) rMax = r;
+                    if(c < cMin) cMin = c; if(c > cMax) cMax = c;
+                });
+                let tsv = "";
+                for (let r = rMin; r <= rMax; r++) {
+                    let rowTsv = [];
+                    for (let c = cMin; c <= cMax; c++) {
+                        let cell = xsheetTable.rows[r].cells[c];
+                        rowTsv.push(cell && cell.classList.contains('selected-cell') ? cell.innerText.trim() : "");
+                    }
+                    tsv += rowTsv.join("\t") + "\n";
+                }
+                e.clipboardData.setData('text/plain', tsv);
+                e.preventDefault();
+            }
+        });
+
+        document.addEventListener('paste', (e) => {
+            if (document.activeElement.tagName === 'TEXTAREA' || document.activeElement.tagName === 'INPUT') return;
+            let selected = document.querySelectorAll('.selected-cell');
+            if (selected.length === 0) return;
+            let rMin = Infinity, cMin = Infinity;
+            selected.forEach(cell => {
+                let r = cell.parentElement.rowIndex, c = cell.cellIndex;
+                if (r < rMin) { rMin = r; cMin = c; }
+            });
+            let pasteData = (e.clipboardData || window.clipboardData).getData('text');
+            if (!pasteData) return;
+            e.preventDefault();
+            let rows = pasteData.split(/\r\n|\n|\r/);
+            if (rows[rows.length - 1] === "") rows.pop();
+            rows.forEach((rowText, i) => {
+                let cols = rowText.split('\t');
+                let targetRow = xsheetTable.rows[rMin + i];
+                if (targetRow) {
+                    cols.forEach((colText, j) => {
+                        let cell = targetRow.cells[cMin + j];
+                        if (cell && cell.classList.contains('editable-col')) {
+                            cell.innerText = colText;
+                            if (colText.trim() === '/') cell.classList.add('inbetween-mark');
+                            else cell.classList.remove('inbetween-mark');
+                        }
+                    });
+                }
+            });
+            updateVisor();
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (document.activeElement.tagName === 'TEXTAREA' || document.activeElement.tagName === 'INPUT') return;
+            if ((e.key === 'Delete' || e.key === 'Backspace') && !isDrawingMode) {
+                let selected = document.querySelectorAll('.selected-cell');
+                if (selected.length > 1) {
+                    e.preventDefault();
+                    selected.forEach(cell => {
+                        cell.innerText = "";
+                        cell.classList.remove('inbetween-mark');
+                    });
+                    updateVisor();
+                }
+            }
+        });
+
+        // ==========================================
+
         xsheetBody.addEventListener('keydown', (e) => {
             if (e.target.classList.contains('editable-col') && e.key === 'Enter') {
                 e.preventDefault(); 
-                let currentCell = e.target;
-                let cellIndex = currentCell.cellIndex; 
-                let currentFrameNum = parseInt(currentCell.parentElement.id.replace('frame-', ''));
-                let targetFrameNum = currentFrameNum + 3; 
+                let cellIndex = e.target.cellIndex; 
+                let targetFrameNum = parseInt(e.target.parentElement.id.replace('frame-', '')) + 3; 
                 if (targetFrameNum <= getDurationInFrames()) {
                     let targetCell = document.getElementById(`frame-${targetFrameNum}`).cells[cellIndex];
                     if (targetCell) { targetCell.focus(); targetCell.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
@@ -237,7 +398,6 @@
             }
         });
 
-        // Lógica do Marcador '/'
         xsheetBody.addEventListener('input', (e) => {
             if (e.target.classList.contains('editable-col')) {
                 let text = e.target.innerText.trim();
@@ -246,18 +406,9 @@
             }
         });
 
-        // ==========================================
-        // CÁLCULO EXATO PARA O MOUSE NO CANVAS
-        // ==========================================
         function getDrawPos(e) {
             const rect = drawLayer.getBoundingClientRect();
-            const scaleX = drawLayer.width / rect.width;
-            const scaleY = drawLayer.height / rect.height;
-            
-            return {
-                x: (e.clientX - rect.left) * scaleX,
-                y: (e.clientY - rect.top) * scaleY
-            };
+            return { x: (e.clientX - rect.left) * (drawLayer.width / rect.width), y: (e.clientY - rect.top) * (drawLayer.height / rect.height) };
         }
 
         document.getElementById('btnDraw').addEventListener('click', function() {
@@ -266,32 +417,65 @@
             scrollContainer.classList.toggle('drawing-mode');
         });
 
-        document.getElementById('btnClearDraw').addEventListener('click', () => {
-            ctxDraw.clearRect(0, 0, drawLayer.width, drawLayer.height);
-        });
+        document.getElementById('btnClearDraw').addEventListener('click', () => ctxDraw.clearRect(0, 0, drawLayer.width, drawLayer.height));
 
         drawLayer.addEventListener('mousedown', (e) => {
             if (!isDrawingMode) return;
             isPainting = true;
-            ctxDraw.beginPath();
-            ctxDraw.lineWidth = 2;
-            ctxDraw.lineCap = 'round';
-            ctxDraw.strokeStyle = '#2196F3';
-            
-            let pos = getDrawPos(e);
-            ctxDraw.moveTo(pos.x, pos.y);
+            ctxDraw.beginPath(); ctxDraw.lineWidth = 2; ctxDraw.lineCap = 'round'; ctxDraw.strokeStyle = '#2196F3';
+            let pos = getDrawPos(e); ctxDraw.moveTo(pos.x, pos.y);
         });
 
         drawLayer.addEventListener('mousemove', (e) => {
             if (!isPainting || !isDrawingMode) return;
-            
-            let pos = getDrawPos(e);
-            ctxDraw.lineTo(pos.x, pos.y);
-            ctxDraw.stroke();
+            let pos = getDrawPos(e); ctxDraw.lineTo(pos.x, pos.y); ctxDraw.stroke();
         });
 
+	
+		
         window.addEventListener('mouseup', () => isPainting = false);
+		
+		// Variável de estado para saber se estamos no meio de um arrasto na coluna de frames
+let isScrubbingFrames = false;
 
+// 1. Inicia o scrub quando o mouse é pressionado na coluna de frames
+xsheetTable.addEventListener('mousedown', (e) => {
+    // Ignora se estivermos no modo de desenho
+    if (isDrawingMode) return;
+    
+    // Verifica se o alvo do clique tem a classe 'frame-col'
+    if (e.target.classList.contains('frame-col')) {
+        // Ignora cliques com o botão direito (button !== 0)
+        if (e.button !== 0) return; 
+        
+        isScrubbingFrames = true;
+        document.body.classList.add('scrubbing-active'); 
+        
+        // Vai para o frame em que o usuário acabou de clicar
+        let frame = parseInt(e.target.innerText);
+        if (!isNaN(frame)) goToFrame(frame);
+        
+        // Evita que o navegador tente "puxar" os números ou selecionar o texto
+        e.preventDefault(); 
+    }
+});
+
+// 2. Atualiza o visor ao arrastar (passar o mouse por cima) de outras células da mesma coluna
+xsheetTable.addEventListener('mouseover', (e) => {
+    if (isScrubbingFrames && e.target.classList.contains('frame-col')) {
+        let frame = parseInt(e.target.innerText);
+        if (!isNaN(frame)) goToFrame(frame);
+    }
+});
+
+// 3. Cancela o scrub ao soltar o clique em qualquer lugar da tela
+window.addEventListener('mouseup', () => {
+    if (isScrubbingFrames) {
+        isScrubbingFrames = false;
+        document.body.classList.remove('scrubbing-active');
+    }
+});
+		
         document.getElementById('folderInput').addEventListener('change', function(e) {
             const files = Array.from(e.target.files);
             files.sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'}));
@@ -347,15 +531,52 @@
                 if (isPlaying) currentRow.scrollIntoView({ behavior: 'auto', block: 'center' });
             }
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            const layers = [{cl:'col-a',p:'A'},{cl:'col-b',p:'B'},{cl:'col-c',p:'C'},{cl:'col-d',p:'D'},{cl:'col-e',p:'E'},{cl:'col-f',p:'F'}];
+            
+            // NOVA ORDEM DE EMPILHAMENTO: Lê dinamicamente os inputs de Book no cabeçalho
+            const layers = [
+                { type: 'cel', cl: 'col-bg', p: 'BG', alpha: 0.5 },
+                { type: 'book', id: 'bk-bg-a', alpha: 0.5 },
+                { type: 'cel', cl: 'col-a', p: 'A', alpha: 1.0 },
+                { type: 'book', id: 'bk-a-b', alpha: 0.5 },
+                { type: 'cel', cl: 'col-b', p: 'B', alpha: 1.0 },
+                { type: 'book', id: 'bk-b-c', alpha: 0.5 },
+                { type: 'cel', cl: 'col-c', p: 'C', alpha: 1.0 },
+                { type: 'book', id: 'bk-c-d', alpha: 0.5 },
+                { type: 'cel', cl: 'col-d', p: 'D', alpha: 1.0 },
+                { type: 'book', id: 'bk-d-e', alpha: 0.5 },
+                { type: 'cel', cl: 'col-e', p: 'E', alpha: 1.0 },
+                { type: 'book', id: 'bk-e-f', alpha: 0.5 },
+                { type: 'cel', cl: 'col-f', p: 'F', alpha: 1.0 }
+            ];
+            
             layers.forEach((l, i) => {
-                let val = getHeldValue(currentFrame, l.cl);
+                let val = null;
+                
+                if (l.type === 'cel') {
+                    val = getHeldValue(currentFrame, l.cl);
+                } else if (l.type === 'book') {
+                    let bkInput = document.getElementById(l.id);
+                    if (bkInput && bkInput.value.trim() !== "") {
+                        val = bkInput.value.trim().toUpperCase();
+                    }
+                }
+
                 if (val) {
-                    let img = imageBank[val.startsWith(l.p) ? val : l.p + val] || imageBank[val];
+                    let searchKey = val;
+                    // Auto-completa para "BKX" se o usuário digitar só número no campo do Book
+                    if (l.type === 'book' && /^\d+$/.test(val)) {
+                        searchKey = 'BK' + val;
+                    } else if (l.type === 'cel' && !val.startsWith(l.p)) {
+                        searchKey = l.p + val;
+                    }
+
+                    let img = imageBank[searchKey] || imageBank[val];
                     if (img) {
                         ctx.globalCompositeOperation = i > 0 ? 'multiply' : 'source-over';
+                        ctx.globalAlpha = l.alpha;
                         let s = 0.75, w = img.width * s, h = img.height * s;
                         ctx.drawImage(img, (canvas.width - w)/2, (canvas.height - h)/2, w, h);
+                        ctx.globalAlpha = 1.0; 
                     }
                 }
             });
