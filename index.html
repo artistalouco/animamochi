@@ -1,23 +1,384 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Técnicas de Animação Frame a Frame</title>
-    <link rel="stylesheet" href="style.css">
+    <title>X-Sheet Line Tester</title>
+    <style>
+        body { font-family: sans-serif; display: flex; gap: 20px; padding: 20px; background: #e0e0e0; margin: 0; height: 100vh; box-sizing: border-box; }
+        
+        /* PAINEL ESQUERDO: Canvas e Arquivos */
+        .player-area { flex: 1.2; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+        .controls { background: white; padding: 15px; border-radius: 5px; border: 1px solid #ccc; }
+        
+        .folder-select-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+        .folder-select-row label { font-weight: bold; font-size: 0.9em; margin: 0; }
+        .controls input[type="file"] { margin: 0; }
+        
+        .thumbnail-strip { display: flex; gap: 12px; overflow-x: auto; padding: 10px; background: #f0f0f0; border-radius: 4px; border: 1px solid #ddd; min-height: 160px; align-items: flex-end; }
+        
+        .thumbnail-container { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+        .thumbnail-label { font-size: 0.85em; font-weight: bold; color: #444; background: #ddd; padding: 2px 6px; border-radius: 3px; }
+        .thumbnail-container img { height: 120px; border: 1px solid #aaa; border-radius: 3px; object-fit: contain; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+
+        .canvas-container { flex: 1; position: relative; width: 100%; background: #e8e8e8; border: 2px solid #333; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+        canvas { width: 100%; height: 100%; object-fit: contain; }
+
+        /* PAINEL DIREITO: X-Sheet e Controles */
+        .xsheet-area { flex: 1; display: flex; flex-direction: column; background: white; border: 1px solid #ccc; box-shadow: 0 4px 8px rgba(0,0,0,0.1); height: 100%; overflow: hidden; }
+        
+        .xsheet-header { display: flex; gap: 15px; padding: 10px; background: #f8f8f8; border-bottom: 2px solid #ccc; align-items: stretch; }
+        .xsheet-header-controls { display: flex; flex-direction: column; gap: 10px; min-width: 200px; }
+        
+        .duration-box { display: flex; align-items: center; gap: 10px; font-weight: bold; font-size: 0.9em; }
+        .duration-box input { width: 80px; text-align: center; font-weight: bold; font-size: 1.1em; padding: 4px; }
+        
+        .transport-bar { display: flex; gap: 3px; background: #333; padding: 5px; border-radius: 5px; justify-content: space-between; }
+        .transport-bar button { flex: 1; padding: 8px 5px; font-size: 11px; cursor: pointer; border: none; border-radius: 3px; font-weight: bold; }
+        #btnPlay { background: #4CAF50; color: white; }
+        #btnPause { background: #FF9800; color: white; }
+        #btnStop { background: #F44336; color: white; }
+        
+        /* Botões da ferramenta de desenho */
+        #btnDraw { background: #2196F3; color: white; }
+        #btnDraw.active { background: #0D47A1; box-shadow: inset 0 0 10px rgba(0,0,0,0.5); border: 1px solid white; }
+        #btnClearDraw { background: #757575; color: white; }
+
+        .general-memo-box { flex: 1; display: flex; flex-direction: column; }
+        .general-memo-box label { font-size: 0.8em; font-weight: bold; margin-bottom: 2px; color: #555; }
+        .general-memo-box textarea { flex: 1; resize: none; border: 1px solid #ccc; border-radius: 3px; padding: 5px; font-family: sans-serif; font-size: 0.85em; background: #ffffcc; outline: none; }
+        .general-memo-box textarea:focus { background: #fff099; }
+
+        /* TABELA X-SHEET */
+        .table-scroll { flex: 1; overflow: auto; position: relative; }
+        table { border-collapse: collapse; width: 100%; text-align: center; table-layout: fixed; min-width: 350px; position: relative; z-index: 1; }
+        th, td { border: 1px solid #999; padding: 1px 2px; height: 18px; overflow: hidden; white-space: nowrap; }
+        th { background: #d0e4f5; position: sticky; top: 0; z-index: 3; box-shadow: 0 2px 2px rgba(0,0,0,0.1); font-size: 0.8em; }
+        
+        td.sec-col { background: #f0f0f0; color: #999; font-size: 0.55em; font-weight: bold; border: 1px solid #e6e6e6; }
+        td.frame-col { background: #e8e8e8; font-weight: bold; cursor: pointer; font-size: 0.8em; color: #666; border: 1px solid #dcdcdc; }
+        
+        .editable-col { cursor: text; outline: none; font-size: 0.8em; }
+        .editable-col:focus { background: #e8f4ff; box-shadow: inset 0 0 0 2px #0078d7; }
+        
+        .memo-col { background: #ffffcc !important; text-align: left; padding-left: 5px; font-size: 0.8em; }
+        .memo-col:focus { background: #fff099 !important; }
+
+        /* Canvas de desenho sobre a tabela */
+        #drawLayer { position: absolute; top: 0; left: 0; z-index: 2; pointer-events: none; }
+        .drawing-mode #drawLayer { pointer-events: auto; cursor: crosshair; }
+
+        /* PADRÃO DE CORES BY 3s */
+        tr:nth-child(3n+1) td.editable-col:not(.memo-col) { background-color: #ffffff; }
+        tr:nth-child(3n+2) td.editable-col:not(.memo-col) { background-color: #f9f9f9; }
+        tr:nth-child(3n) td.editable-col:not(.memo-col) { background-color: #ececec; }
+
+        tr:nth-child(24n) td { border-bottom: 2px solid #555 !important; }
+        
+        /* LINHA ATIVA COM 40% DE TRANSPARÊNCIA (RGBA) */
+        .active-row td { 
+            border-top: 1px solid red !important; 
+            border-bottom: 1px solid red !important; 
+            background-color: rgba(255, 0, 0, 0.4) !important; 
+        }
+
+        /* Estilo para o marcador de Inbetween "/" */
+        .inbetween-mark {
+            color: #E91E63 !important; 
+            font-weight: 900 !important;
+            background-color: #fce4ec !important;
+            font-size: 1em !important; 
+        }
+    </style>
 </head>
 <body>
 
-    <div id="sidebar-container" class="container"></div>
+    <div class="player-area">
+        <div class="controls">
+            <div class="folder-select-row">
+                <label>1. Carregar Pasta Raiz:</label>
+                <input type="file" id="folderInput" webkitdirectory directory multiple />
+            </div>
+            <div id="thumbnailStrip" class="thumbnail-strip"></div>
+        </div>
+        <div class="canvas-container">
+            <canvas id="animVisor" width="1920" height="1080"></canvas>
+        </div>
+    </div>
 
-    <main>
-        <article class="post-content">
-            <h2>Bem-vindo.</h2>
-            <p>Selecione um tópico ao lado para ler sobre meus processos de animação.</p>
-            <p>Este site documenta técnicas de perspectiva, timing e workflow na Unity.</p>
-        </article>
-    </main>
+    <div class="xsheet-area">
+        <div class="xsheet-header">
+            <div class="xsheet-header-controls">
+                <div class="duration-box">
+                    <label>Tempo (S+F):</label>
+                    <input type="text" id="inputDuration" value="1+0" />
+                </div>
+                <div class="transport-bar">
+                    <button id="btnPlay">PLAY</button>
+                    <button id="btnPause">PAUSE</button>
+                    <button id="btnStop">STOP</button>
+                    <button id="btnDraw" title="Desenhar anotações">DRAW</button>
+                    <button id="btnClearDraw" title="Limpar desenhos">CLR</button>
+                </div>
+            </div>
+            <div class="general-memo-box">
+                <label>Memo / Direção da Cena:</label>
+                <textarea placeholder="Escreva as anotações gerais da cena aqui..."></textarea>
+            </div>
+        </div>
 
-    <script src="menu.js"></script>
+        <div class="table-scroll" id="scrollContainer">
+            <canvas id="drawLayer"></canvas>
+            <table id="xsheetTable">
+                <colgroup>
+                    <col style="width: 20px;">
+                    <col style="width: 28px;">
+                    <col style="width: 24px;"> 
+                    <col style="width: 24px;">
+                    <col style="width: 24px;">
+                    <col style="width: 24px;">
+                    <col style="width: 24px;">
+                    <col style="width: 24px;">
+                    <col style="width: 100px;">
+                    <col style="width: 35px;">
+                    <col style="width: 35px;">
+                </colgroup>
+                <thead>
+                    <tr>
+                        <th rowspan="2" style="font-size: 0.7em;">Sec</th>
+                        <th rowspan="2">Fr</th>
+                        <th colspan="6">Keys</th>
+                        <th rowspan="2" style="background: #ffffcc;">Dialog</th>
+                        <th colspan="2">Camera</th>
+                    </tr>
+                    <tr>
+                        <th>A</th><th>B</th><th>C</th><th>D</th><th>E</th><th>F</th>
+                        <th></th><th></th>
+                    </tr>
+                </thead>
+                <tbody id="xsheetBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const fps = 24;
+        const totalFrames = 1000; 
+        
+        const canvas = document.getElementById('animVisor');
+        const ctx = canvas.getContext('2d');
+        const xsheetBody = document.getElementById('xsheetBody');
+        const xsheetTable = document.getElementById('xsheetTable');
+        const thumbnailStrip = document.getElementById('thumbnailStrip');
+        const drawLayer = document.getElementById('drawLayer');
+        const ctxDraw = drawLayer.getContext('2d');
+        const scrollContainer = document.getElementById('scrollContainer');
+
+        let imageBank = {};
+        let currentFrame = 1;
+        let isPlaying = false;
+        let isDrawingMode = false;
+        let isPainting = false;
+        let playInterval;
+
+        function buildXSheet() {
+            for (let i = 1; i <= totalFrames; i++) {
+                let row = document.createElement('tr');
+                row.id = `frame-${i}`;
+                let secText = (i % 24 === 0) ? (i / 24) + 's' : '';
+                row.innerHTML += `<td class="sec-col">${secText}</td>`;
+                row.innerHTML += `<td class="frame-col" onclick="goToFrame(${i})">${i}</td>`;
+                row.innerHTML += `<td class="editable-col col-a" contenteditable="true"></td>`;
+                row.innerHTML += `<td class="editable-col col-b" contenteditable="true"></td>`;
+                row.innerHTML += `<td class="editable-col col-c" contenteditable="true"></td>`;
+                row.innerHTML += `<td class="editable-col col-d" contenteditable="true"></td>`;
+                row.innerHTML += `<td class="editable-col col-e" contenteditable="true"></td>`;
+                row.innerHTML += `<td class="editable-col col-f" contenteditable="true"></td>`;
+                row.innerHTML += `<td class="editable-col memo-col" contenteditable="true"></td>`;
+                row.innerHTML += `<td class="editable-col" contenteditable="true"></td>`; 
+                row.innerHTML += `<td class="editable-col" contenteditable="true"></td>`; 
+                xsheetBody.appendChild(row);
+            }
+            setTimeout(syncDrawCanvasSize, 50);
+        }
+
+        function syncDrawCanvasSize() {
+            let tempCanvas = document.createElement('canvas');
+            if (drawLayer.width > 0 && drawLayer.height > 0) {
+                tempCanvas.width = drawLayer.width;
+                tempCanvas.height = drawLayer.height;
+                tempCanvas.getContext('2d').drawImage(drawLayer, 0, 0);
+            }
+            
+            // Trava o tamanho interno e externo do canvas para evitar distorção do mouse
+            drawLayer.width = xsheetTable.offsetWidth;
+            drawLayer.height = xsheetTable.offsetHeight;
+            drawLayer.style.width = xsheetTable.offsetWidth + 'px';
+            drawLayer.style.height = xsheetTable.offsetHeight + 'px';
+            
+            if (tempCanvas.width > 0) {
+                ctxDraw.drawImage(tempCanvas, 0, 0);
+            }
+        }
+
+        buildXSheet();
+
+        // Lógica de Pulo By 3s
+        xsheetBody.addEventListener('keydown', (e) => {
+            if (e.target.classList.contains('editable-col') && e.key === 'Enter') {
+                e.preventDefault(); 
+                let currentCell = e.target;
+                let cellIndex = currentCell.cellIndex; 
+                let currentFrameNum = parseInt(currentCell.parentElement.id.replace('frame-', ''));
+                let targetFrameNum = currentFrameNum + 3; 
+                if (targetFrameNum <= getDurationInFrames()) {
+                    let targetCell = document.getElementById(`frame-${targetFrameNum}`).cells[cellIndex];
+                    if (targetCell) { targetCell.focus(); targetCell.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+                } else { e.target.blur(); }
+            }
+        });
+
+        // Lógica do Marcador '/'
+        xsheetBody.addEventListener('input', (e) => {
+            if (e.target.classList.contains('editable-col')) {
+                let text = e.target.innerText.trim();
+                if (text === '/') e.target.classList.add('inbetween-mark');
+                else e.target.classList.remove('inbetween-mark');
+            }
+        });
+
+        // ==========================================
+        // CÁLCULO EXATO PARA O MOUSE NO CANVAS
+        // ==========================================
+        function getDrawPos(e) {
+            const rect = drawLayer.getBoundingClientRect();
+            const scaleX = drawLayer.width / rect.width;
+            const scaleY = drawLayer.height / rect.height;
+            
+            return {
+                x: (e.clientX - rect.left) * scaleX,
+                y: (e.clientY - rect.top) * scaleY
+            };
+        }
+
+        document.getElementById('btnDraw').addEventListener('click', function() {
+            isDrawingMode = !isDrawingMode;
+            this.classList.toggle('active');
+            scrollContainer.classList.toggle('drawing-mode');
+        });
+
+        document.getElementById('btnClearDraw').addEventListener('click', () => {
+            ctxDraw.clearRect(0, 0, drawLayer.width, drawLayer.height);
+        });
+
+        drawLayer.addEventListener('mousedown', (e) => {
+            if (!isDrawingMode) return;
+            isPainting = true;
+            ctxDraw.beginPath();
+            ctxDraw.lineWidth = 2;
+            ctxDraw.lineCap = 'round';
+            ctxDraw.strokeStyle = '#2196F3';
+            
+            let pos = getDrawPos(e);
+            ctxDraw.moveTo(pos.x, pos.y);
+        });
+
+        drawLayer.addEventListener('mousemove', (e) => {
+            if (!isPainting || !isDrawingMode) return;
+            
+            let pos = getDrawPos(e);
+            ctxDraw.lineTo(pos.x, pos.y);
+            ctxDraw.stroke();
+        });
+
+        window.addEventListener('mouseup', () => isPainting = false);
+
+        document.getElementById('folderInput').addEventListener('change', function(e) {
+            const files = Array.from(e.target.files);
+            files.sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'}));
+            imageBank = {}; thumbnailStrip.innerHTML = ''; 
+            for (let file of files) {
+                if (file.type.startsWith('image/')) {
+                    let cleanName = file.name.replace(/\.[^/.]+$/, "").toUpperCase().replace(/0+(?=\d)/g, "");
+                    let objectUrl = URL.createObjectURL(file);
+                    let img = new Image(); img.src = objectUrl; imageBank[cleanName] = img;
+                    let thumbCont = document.createElement('div'); thumbCont.className = 'thumbnail-container';
+                    thumbCont.innerHTML = `<div class="thumbnail-label">${cleanName}</div>`;
+                    let thumb = new Image(); thumb.src = objectUrl; thumbCont.appendChild(thumb);
+                    thumbnailStrip.appendChild(thumbCont);
+                }
+            }
+            updateVisor(); 
+        });
+
+        function getDurationInFrames() {
+            const val = document.getElementById('inputDuration').value;
+            if (!val.includes('+')) return 24; 
+            const parts = val.split('+');
+            return (parseInt(parts[0]) || 0) * fps + (parseInt(parts[1]) || 0);
+        }
+
+        function syncTableVisibility() {
+            const max = getDurationInFrames();
+            document.querySelectorAll('#xsheetBody tr').forEach(row => {
+                row.style.display = parseInt(row.id.replace('frame-', '')) > max ? 'none' : 'table-row';
+            });
+            setTimeout(syncDrawCanvasSize, 50);
+        }
+
+        document.getElementById('inputDuration').addEventListener('input', syncTableVisibility);
+        syncTableVisibility(); 
+
+        function getHeldValue(frameNumber, colClass) {
+            for (let i = frameNumber; i >= 1; i--) {
+                let cell = document.querySelector(`#frame-${i} .${colClass}`);
+                if (cell && cell.style.display !== 'none') {
+                    let text = cell.innerText.trim().toUpperCase();
+                    if (text !== "" && text !== "/") return text; 
+                }
+            }
+            return null; 
+        }
+
+        function updateVisor() {
+            document.querySelectorAll('.active-row').forEach(el => el.classList.remove('active-row'));
+            let currentRow = document.getElementById(`frame-${currentFrame}`);
+            if (currentRow) {
+                currentRow.classList.add('active-row');
+                if (isPlaying) currentRow.scrollIntoView({ behavior: 'auto', block: 'center' });
+            }
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const layers = [{cl:'col-a',p:'A'},{cl:'col-b',p:'B'},{cl:'col-c',p:'C'},{cl:'col-d',p:'D'},{cl:'col-e',p:'E'},{cl:'col-f',p:'F'}];
+            layers.forEach((l, i) => {
+                let val = getHeldValue(currentFrame, l.cl);
+                if (val) {
+                    let img = imageBank[val.startsWith(l.p) ? val : l.p + val] || imageBank[val];
+                    if (img) {
+                        ctx.globalCompositeOperation = i > 0 ? 'multiply' : 'source-over';
+                        let s = 0.75, w = img.width * s, h = img.height * s;
+                        ctx.drawImage(img, (canvas.width - w)/2, (canvas.height - h)/2, w, h);
+                    }
+                }
+            });
+        }
+
+        function goToFrame(f) { currentFrame = f; updateVisor(); }
+
+        document.getElementById('btnPlay').addEventListener('click', () => {
+            if (isPlaying) return; isPlaying = true;
+            playInterval = setInterval(() => {
+                currentFrame++;
+                if (currentFrame > getDurationInFrames()) currentFrame = 1; 
+                updateVisor();
+            }, 1000 / fps);
+        });
+
+        document.getElementById('btnPause').addEventListener('click', () => { isPlaying = false; clearInterval(playInterval); });
+        document.getElementById('btnStop').addEventListener('click', () => {
+            isPlaying = false; clearInterval(playInterval); currentFrame = 1; updateVisor();
+            scrollContainer.scrollTop = 0;
+        });
+
+        updateVisor();
+    </script>
 </body>
 </html>
