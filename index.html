@@ -1,605 +1,1120 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <title>X-Sheet Line Tester</title>
-    <style>
-        body { font-family: sans-serif; display: flex; gap: 20px; padding: 20px; background: #e0e0e0; margin: 0; height: 100vh; box-sizing: border-box; }
-        
-        .player-area { flex: 1.2; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
-        .controls { background: white; padding: 15px; border-radius: 5px; border: 1px solid #ccc; }
-        
-        .folder-select-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-        .folder-select-row label { font-weight: bold; font-size: 0.9em; margin: 0; }
-        .controls input[type="file"] { margin: 0; }
-        
-        .thumbnail-strip { display: flex; gap: 12px; overflow-x: auto; padding: 10px; background: #f0f0f0; border-radius: 4px; border: 1px solid #ddd; min-height: 160px; align-items: flex-end; }
-        
-        .thumbnail-container { display: flex; flex-direction: column; align-items: center; gap: 6px; }
-        .thumbnail-label { font-size: 0.85em; font-weight: bold; color: #444; background: #ddd; padding: 2px 6px; border-radius: 3px; }
-        .thumbnail-container img { height: 120px; border: 1px solid #aaa; border-radius: 3px; object-fit: contain; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistema Cartográfico 3D Isométrico - Ilhas Solar</title>
+<style>
+  :root {
+    --bg-base: #05080c;
+    --bg-panel: #0a1118;
+    --bg-card: #0f1c26;
+    --border-dim: #162a38;
+    --border-glow: #00f0ff;
+    --text-primary: #d6e8ee;
+    --text-muted: #5c7e91;
+    --accent-cyan: #00f0ff;
+    --accent-emerald: #00ffaa;
+    --accent-amber: #ffaa00;
+    --accent-rose: #ff2a55;
+    --accent-purple: #c346ff;
+    --font-mono: 'Consolas', 'Courier New', monospace;
+  }
 
-        .canvas-container { flex: 1; position: relative; width: 100%; background: #e8e8e8; border: 2px solid #333; overflow: hidden; display: flex; align-items: center; justify-content: center; }
-        canvas { width: 100%; height: 100%; object-fit: contain; }
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    user-select: none;
+  }
 
-        .xsheet-area { flex: 1; display: flex; flex-direction: column; background: white; border: 1px solid #ccc; box-shadow: 0 4px 8px rgba(0,0,0,0.1); height: 100%; overflow: hidden; }
-        
-        .xsheet-header { display: flex; gap: 15px; padding: 10px; background: #f8f8f8; border-bottom: 2px solid #ccc; align-items: stretch; }
-        .xsheet-header-controls { display: flex; flex-direction: column; gap: 10px; min-width: 200px; }
-        
-        .duration-box { display: flex; align-items: center; gap: 10px; font-weight: bold; font-size: 0.9em; }
-        .duration-box input { width: 80px; text-align: center; font-weight: bold; font-size: 1.1em; padding: 4px; }
-        
-        .transport-bar { display: flex; gap: 3px; background: #333; padding: 5px; border-radius: 5px; justify-content: space-between; }
-        .transport-bar button { flex: 1; padding: 8px 5px; font-size: 11px; cursor: pointer; border: none; border-radius: 3px; font-weight: bold; }
-        #btnPlay { background: #4CAF50; color: white; }
-        #btnPause { background: #FF9800; color: white; }
-        #btnStop { background: #F44336; color: white; }
-        
-        #btnDraw { background: #2196F3; color: white; }
-        #btnDraw.active { background: #0D47A1; box-shadow: inset 0 0 10px rgba(0,0,0,0.5); border: 1px solid white; }
-        #btnClearDraw { background: #757575; color: white; }
+  body {
+    background: var(--bg-base);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
 
-        .general-memo-box { flex: 1; display: flex; flex-direction: column; }
-        .general-memo-box label { font-size: 0.8em; font-weight: bold; margin-bottom: 2px; color: #555; }
-        .general-memo-box textarea { flex: 1; resize: none; border: 1px solid #ccc; border-radius: 3px; padding: 5px; font-family: sans-serif; font-size: 0.85em; background: #ffffcc; outline: none; }
-        .general-memo-box textarea:focus { background: #fff099; }
+  /* Tactical Header Bar */
+  header {
+    height: 46px;
+    background: linear-gradient(180deg, #0d1720 0%, #080e14 100%);
+    border-bottom: 1px solid var(--border-dim);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    z-index: 100;
+    box-shadow: 0 2px 14px rgba(0,0,0,0.7);
+  }
 
-        .table-scroll { flex: 1; overflow: auto; position: relative; }
-        table { border-collapse: collapse; width: 100%; text-align: center; table-layout: fixed; min-width: 380px; position: relative; z-index: 1; user-select: none; }
-        th, td { border: 1px solid #999; padding: 1px 2px; height: 18px; white-space: nowrap; }
-        td { overflow: hidden; } /* Aplicado apenas em TDs para as pílulas de Book não serem cortadas */
-        
-        /* O th agora aceita elementos vazando (overflow: visible) para as etiquetas do Book */
-        th { background: #d0e4f5; position: sticky; top: 0; z-index: 3; box-shadow: 0 2px 2px rgba(0,0,0,0.1); font-size: 0.75em; overflow: visible; }
-        
-        td.sec-col { background: #f0f0f0; color: #999; font-size: 0.55em; font-weight: bold; border: 1px solid #e6e6e6; }
-        td.frame-col { 
-    background: #e8e8e8; 
-    font-weight: bold; 
-    cursor: ns-resize; /* Cursor de redimensionamento vertical (norte-sul) */
-    font-size: 0.8em; 
-    color: #666; 
-    border: 1px solid #dcdcdc; 
-    user-select: none; /* Previne a seleção acidental de texto ao arrastar */
-}
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
 
-/* Força o cursor de 'agarrando' em toda a tela enquanto o arrasto acontece */
-body.scrubbing-active, 
-body.scrubbing-active td.frame-col {
-    cursor: grabbing !important;
-}
-        
-        .editable-col { cursor: text; outline: none; font-size: 0.8em; user-select: text; }
-        
-        .selected-cell { background-color: #bbdefb !important; box-shadow: inset 0 0 0 1px #1976d2; }
-        .memo-col { background: #ffffcc !important; text-align: left; padding-left: 5px; font-size: 0.8em; }
-        .selected-cell.memo-col { background-color: #d1eaff !important; }
+  .radar-pulsar {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--accent-emerald);
+    box-shadow: 0 0 10px var(--accent-emerald);
+    animation: pulseRadar 2s infinite ease-in-out;
+  }
 
-        #drawLayer { position: absolute; top: 0; left: 0; z-index: 2; pointer-events: none; }
-        .drawing-mode #drawLayer { pointer-events: auto; cursor: crosshair; }
+  @keyframes pulseRadar {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.35; transform: scale(0.85); }
+  }
 
-        /* NOVA: Etiqueta invisível/flutuante para os Books no cabeçalho */
-        .book-input {
-            position: absolute;
-            top: -16px; /* Flutua um pouco acima da letra da Coluna */
-            right: -13px; /* Centraliza perfeitamente na linha divisória */
-            width: 24px;
-            height: 14px;
-            font-size: 8px;
-            font-weight: bold;
-            text-align: center;
-            background: #e1bee7; /* Roxo sutil */
-            border: 1px solid #ab47bc;
-            color: #4a148c;
-            border-radius: 6px;
-            z-index: 10;
-            padding: 0;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.2);
-            transition: all 0.2s ease;
-        }
-        .book-input::placeholder { color: #ba68c8; font-weight: normal; }
-        .book-input:focus {
-            width: 45px;
-            right: -23px; /* Mantém centralizado quando cresce */
-            font-size: 10px;
-            background: #fff;
-            outline: none;
-            box-shadow: 0 0 5px #ab47bc;
-            z-index: 11;
-        }
+  .hud-title-h1 {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--accent-cyan);
+    text-shadow: 0 0 10px rgba(0, 240, 255, 0.4);
+  }
 
-        tr:nth-child(3n+1) td.editable-col:not(.memo-col):not(.selected-cell) { background-color: #ffffff; }
-        tr:nth-child(3n+2) td.editable-col:not(.memo-col):not(.selected-cell) { background-color: #f9f9f9; }
-        tr:nth-child(3n) td.editable-col:not(.memo-col):not(.selected-cell) { background-color: #ececec; }
-        tr:nth-child(24n) td { border-bottom: 2px solid #555 !important; }
-        
-        .active-row td { border-top: 1px solid red !important; border-bottom: 1px solid red !important; background-color: rgba(255, 0, 0, 0.4) !important; }
-        .inbetween-mark { color: #E91E63 !important; font-weight: 900 !important; font-size: 1em !important; }
-    </style>
+  .hud-mode-tag {
+    font-size: 10px;
+    color: var(--text-muted);
+    letter-spacing: 1px;
+  }
+
+  .header-stats {
+    display: flex;
+    gap: 18px;
+    font-size: 11px;
+  }
+
+  .stat-item {
+    color: var(--text-muted);
+  }
+  .stat-item span {
+    color: var(--accent-amber);
+    font-weight: 700;
+  }
+
+  /* Main Workspace Structure */
+  .workspace {
+    flex: 1;
+    display: flex;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* 3D Canvas Viewport */
+  .viewport-3d {
+    flex: 1;
+    position: relative;
+    background: #ffffff;
+    overflow: hidden;
+  }
+
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    cursor: grab;
+  }
+  canvas:active {
+    cursor: grabbing;
+  }
+
+  /* Floating Tactical Controls overlay */
+  .hud-tools-overlay {
+    position: absolute;
+    top: 14px;
+    left: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 20;
+  }
+
+  .tool-btn-group {
+    background: rgba(10, 17, 24, 0.88);
+    border: 1px solid var(--border-dim);
+    border-radius: 4px;
+    padding: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.6);
+    backdrop-filter: blur(5px);
+  }
+
+  .hud-btn {
+    background: #0d1922;
+    border: 1px solid var(--border-dim);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 10px;
+    padding: 5px 8px;
+    border-radius: 3px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.15s;
+    text-transform: uppercase;
+  }
+
+  .hud-btn:hover {
+    border-color: var(--accent-cyan);
+    color: #fff;
+    background: rgba(0, 240, 255, 0.15);
+  }
+
+  .hud-btn.active {
+    background: rgba(0, 240, 255, 0.25);
+    border-color: var(--accent-cyan);
+    color: var(--accent-cyan);
+    font-weight: 700;
+  }
+
+  /* Tactical 3D Compass Box Overlay */
+  .hud-compass-box {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: 94px;
+    height: 110px;
+    background: rgba(10, 17, 24, 0.9);
+    border: 1px solid var(--border-dim);
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 25;
+    backdrop-filter: blur(6px);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.65);
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  .hud-compass-box:hover {
+    border-color: var(--accent-cyan);
+  }
+  .compass-tag {
+    font-size: 8px;
+    font-weight: 700;
+    color: var(--accent-cyan);
+    letter-spacing: 1px;
+    margin-top: 2px;
+  }
+
+  /* Telemetry Status Bar */
+  .telemetry-floating {
+    position: absolute;
+    bottom: 14px;
+    left: 14px;
+    background: rgba(8, 14, 20, 0.92);
+    border: 1px solid var(--border-dim);
+    border-left: 3px solid var(--accent-cyan);
+    border-radius: 4px;
+    padding: 10px 14px;
+    min-width: 440px;
+    max-width: 560px;
+    z-index: 20;
+    pointer-events: none;
+    backdrop-filter: blur(6px);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+    transition: bottom 0.25s ease;
+  }
+
+  .telem-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 3px;
+    font-size: 11px;
+  }
+
+  .telem-highlight {
+    color: var(--accent-cyan);
+    font-weight: 700;
+  }
+
+  .telem-wind-val {
+    color: var(--accent-emerald);
+    font-weight: 700;
+  }
+
+  .telem-vector {
+    color: var(--accent-amber);
+    margin-top: 5px;
+    padding-top: 5px;
+    border-top: 1px dashed var(--border-dim);
+    font-weight: 700;
+  }
+
+  /* Bottom 2D Elevation Profile Drawer */
+  .profile-drawer {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 200px;
+    background: rgba(9, 16, 23, 0.96);
+    border-top: 1px solid var(--border-dim);
+    border-top-color: var(--accent-cyan);
+    box-shadow: 0 -4px 25px rgba(0,0,0,0.7);
+    display: flex;
+    flex-direction: column;
+    z-index: 30;
+    backdrop-filter: blur(8px);
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .profile-drawer.collapsed {
+    transform: translateY(calc(100% - 30px));
+  }
+
+  .profile-header {
+    height: 30px;
+    background: #060b10;
+    border-bottom: 1px solid var(--border-dim);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 14px;
+    cursor: pointer;
+  }
+
+  .profile-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: var(--accent-cyan);
+    text-transform: uppercase;
+  }
+
+  .profile-subtitle {
+    font-weight: normal;
+    color: var(--text-muted);
+    font-size: 9px;
+  }
+
+  .profile-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .profile-canvas-container {
+    flex: 1;
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+  }
+
+  #profileCanvas {
+    cursor: crosshair;
+  }
+
+  /* Right Sidebar Tactical Panel */
+  .hud-sidebar {
+    width: 410px;
+    background: var(--bg-panel);
+    border-left: 1px solid var(--border-dim);
+    display: flex;
+    flex-direction: column;
+    z-index: 50;
+    box-shadow: -4px 0 25px rgba(0,0,0,0.7);
+    overflow-y: auto;
+  }
+
+  .panel-block {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border-dim);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: var(--accent-cyan);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .panel-header span {
+    color: var(--text-muted);
+    font-size: 10px;
+    font-weight: normal;
+  }
+
+  /* Flight Vector & Distance Tools */
+  .vector-calc-box {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .hud-select, .hud-input {
+    background: #091219;
+    border: 1px solid var(--border-dim);
+    color: var(--text-primary);
+    padding: 6px 8px;
+    border-radius: 3px;
+    font-family: inherit;
+    font-size: 11px;
+    width: 100%;
+    outline: none;
+  }
+  .hud-select:focus, .hud-input:focus {
+    border-color: var(--accent-cyan);
+  }
+
+  .hud-select optgroup {
+    background: #060c11;
+    color: var(--accent-cyan);
+    font-weight: 700;
+    font-style: normal;
+  }
+
+  .hud-select option {
+    background: #091219;
+    color: var(--text-primary);
+    padding: 3px;
+  }
+
+  .distance-report {
+    background: #060b0f;
+    border: 1px dashed var(--border-dim);
+    border-radius: 4px;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 11px;
+  }
+
+  .report-line {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .report-divider {
+    border-top: 1px dashed var(--border-dim);
+    margin: 4px 0;
+  }
+
+  .sim-status-badge {
+    font-size: 9px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 2px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  /* Sliders */
+  .hud-slider-container {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .hud-slider-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .hud-slider {
+    flex: 1;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 4px;
+    background: var(--border-dim);
+    border-radius: 2px;
+    outline: none;
+  }
+
+  .hud-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--accent-cyan);
+    cursor: pointer;
+    box-shadow: 0 0 6px var(--accent-cyan);
+    transition: transform 0.1s;
+  }
+  .hud-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+  }
+
+  .hud-slider::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--accent-cyan);
+    cursor: pointer;
+    box-shadow: 0 0 6px var(--accent-cyan);
+  }
+
+  .preset-btn-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+  }
+
+  /* Altitude Layer Filter Bar */
+  .layer-button-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 4px;
+  }
+
+  .layer-toggle-btn {
+    font-family: inherit;
+    font-size: 9px;
+    padding: 5px 2px;
+    text-align: center;
+    border: 1px solid var(--border-dim);
+    border-radius: 3px;
+    background: #0c1720;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .layer-toggle-btn.active {
+    color: #fff;
+    font-weight: 700;
+    border-color: currentColor;
+    background: rgba(255,255,255,0.06);
+  }
+
+  /* Zone PNG Image Management List */
+  .zone-img-card {
+    background: #070e14;
+    border: 1px solid var(--border-dim);
+    border-left: 3px solid var(--accent-cyan);
+    border-radius: 4px;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .zone-img-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .zone-img-meta {
+    font-size: 10px;
+    color: var(--text-muted);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .zone-img-ctrls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* Waypoint Registry scroll view */
+  .waypoint-scroll-list {
+    flex: 1;
+    min-height: 115px;
+    overflow-y: auto;
+    padding: 10px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .wp-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-dim);
+    border-left: 3px solid var(--accent-cyan);
+    border-radius: 4px;
+    padding: 8px 10px;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .wp-card:hover {
+    border-color: var(--accent-cyan);
+    background: #142533;
+    transform: translateX(2px);
+  }
+  .wp-card.selected {
+    border-color: var(--accent-cyan);
+    background: #162a3a;
+    box-shadow: 0 0 10px rgba(0, 240, 255, 0.2);
+  }
+
+  .wp-card-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .wp-card-title {
+    color: #fff;
+    font-weight: 700;
+    font-size: 11px;
+  }
+  .wp-badge {
+    font-size: 9px;
+    padding: 1px 4px;
+    border-radius: 2px;
+    border: 1px solid currentColor;
+  }
+
+  .wp-details {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: var(--text-muted);
+  }
+
+  .wp-subtext {
+    font-size: 10px;
+    color: var(--accent-amber);
+  }
+
+  .wp-actions {
+    display: flex;
+    gap: 5px;
+    margin-top: 3px;
+  }
+  .btn-mini {
+    background: #09131a;
+    border: 1px solid var(--border-dim);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 9px;
+    padding: 4px 6px;
+    border-radius: 2px;
+    cursor: pointer;
+    flex: 1;
+    text-align: center;
+  }
+  .btn-mini:hover {
+    border-color: var(--accent-cyan);
+    color: #fff;
+  }
+  .btn-mini.danger:hover {
+    border-color: var(--accent-rose);
+    color: var(--accent-rose);
+  }
+
+  /* Bottom Actions */
+  .sidebar-bottom-bar {
+    padding: 10px 14px;
+    border-top: 1px solid var(--border-dim);
+    background: #081017;
+    display: flex;
+    gap: 6px;
+  }
+
+  .btn-primary {
+    flex: 1;
+    background: rgba(0, 240, 255, 0.15);
+    border: 1px solid var(--accent-cyan);
+    color: var(--accent-cyan);
+    font-family: inherit;
+    font-weight: 700;
+    font-size: 11px;
+    padding: 8px;
+    border-radius: 3px;
+    cursor: pointer;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .btn-primary:hover {
+    background: var(--accent-cyan);
+    color: #000;
+  }
+
+  /* Dialog Modal */
+  .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0,0,0,0.75);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    backdrop-filter: blur(4px);
+  }
+  .modal-overlay.open {
+    display: flex;
+  }
+
+  .modal-window {
+    background: var(--bg-panel);
+    border: 1px solid var(--accent-cyan);
+    border-radius: 4px;
+    padding: 18px;
+    width: 360px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    box-shadow: 0 0 35px rgba(0, 240, 255, 0.25);
+  }
+
+  .modal-title {
+    color: var(--accent-cyan);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+  }
+
+  .form-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .form-label {
+    font-size: 10px;
+    color: var(--text-muted);
+  }
+
+  .color-picker-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .color-swatch-list {
+    display: flex;
+    gap: 6px;
+    flex: 1;
+  }
+
+  .color-swatch-btn {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: transform 0.15s, border-color 0.15s;
+    outline: none;
+  }
+
+  .color-swatch-btn:hover {
+    transform: scale(1.15);
+  }
+
+  .color-swatch-btn.selected {
+    border-color: #fff;
+    transform: scale(1.15);
+    box-shadow: 0 0 8px currentColor;
+  }
+
+  .color-input-custom {
+    width: 34px;
+    height: 26px;
+    padding: 0;
+    border: 1px solid var(--border-dim);
+    border-radius: 3px;
+    background: transparent;
+    cursor: pointer;
+  }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg-base); }
+  ::-webkit-scrollbar-thumb { background: var(--border-dim); border-radius: 2px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--accent-cyan); }
+</style>
 </head>
 <body>
 
-    <div class="player-area">
-        <div class="controls">
-            <div class="folder-select-row">
-                <label>1. Carregar Pasta Raiz:</label>
-                <input type="file" id="folderInput" webkitdirectory directory multiple />
-            </div>
-            <div id="thumbnailStrip" class="thumbnail-strip"></div>
-        </div>
-        <div class="canvas-container">
-            <canvas id="animVisor" width="1920" height="1080"></canvas>
-        </div>
+<header>
+  <div class="header-left">
+    <div class="radar-pulsar"></div>
+    <div>
+      <div class="hud-title-h1">SISTEMA ISOMÉTRICO 3D // [SM3d-ISOCB]</div>
+      <div class="hud-mode-tag">CARTOGRAFIA METEOROLÓGICA, SIMULAÇÃO DE DERIVA EÓLICA & CAMADAS DE COTA</div>
+    </div>
+  </div>
+  <div class="header-stats">
+    <div class="stat-item">PROJEÇÃO: <span id="statProjection">ISOMÉTRICA (3D)</span></div>
+    <div class="stat-item">PITCH / YAW: <span id="statAngles">35° / 45°</span></div>
+    <div class="stat-item">SONDA Z: <span id="statCursorZ" style="color:var(--accent-cyan)">+3.400m</span></div>
+    <div class="stat-item">VENTO NO CURSOR: <span id="statWindHead" style="color:var(--accent-emerald)">-- km/h</span></div>
+  </div>
+</header>
+
+<div class="workspace">
+  <!-- 3D Canvas Area -->
+  <div class="viewport-3d" id="canvasContainer">
+    <canvas id="viewCanvas"></canvas>
+
+    <!-- Floating HUD View Tools -->
+    <div class="hud-tools-overlay">
+      <div class="tool-btn-group">
+        <button class="hud-btn" id="btnViewIso" title="Ângulo Isométrico Padrão">
+          <span>◆</span> ISOMÉTRICO (3D)
+        </button>
+        <button class="hud-btn" id="btnViewTop" title="Visão Superior 2D">
+          <span>▲</span> PLANAR CENITAL (2D)
+        </button>
+        <button class="hud-btn" id="btnViewSide" title="Perfil Lateral de Altitude ao Nível do Solo">
+          <span>▬</span> PERFIL VERTICAL (EIXO Z)
+        </button>
+      </div>
+
+      <div class="tool-btn-group">
+        <button class="hud-btn active" id="btnToggleWind" title="Exibir linhas de fluxo e dispersão do vento">
+          <span>💨</span> FLUXO DE VENTO
+        </button>
+        <button class="hud-btn" id="btnToggleRuler" title="Medir distância livre entre dois pontos">
+          <span>📏</span> MEDIR DISTÂNCIA
+        </button>
+        <button class="hud-btn" id="btnToggleProfile" title="Exibir perfil de elevação 2D em corte transversal">
+          <span>◢</span> PERFIL DE CORTE 2D
+        </button>
+        <button class="hud-btn" id="btnResetCamera">
+          <span>⌖</span> CENTRALIZAR MARCO ZERO
+        </button>
+        <button class="hud-btn" id="btnToggleLayers">
+          <span>▤</span> PLANOS DE ATMOSFERA
+        </button>
+        <button class="hud-btn" id="btnToggleStems">
+          <span>│</span> HASTES DE PROJEÇÃO Z
+        </button>
+      </div>
     </div>
 
-    <div class="xsheet-area">
-        <div class="xsheet-header">
-            <div class="xsheet-header-controls">
-                <div class="duration-box">
-                    <label>Tempo (S+F):</label>
-                    <input type="text" id="inputDuration" value="1+0" />
-                </div>
-                <div class="transport-bar">
-                    <button id="btnPlay">PLAY</button>
-                    <button id="btnPause">PAUSE</button>
-                    <button id="btnStop">STOP</button>
-                    <button id="btnDraw" title="Desenhar anotações">DRAW</button>
-                    <button id="btnClearDraw" title="Limpar desenhos">CLR</button>
-                </div>
-            </div>
-            <div class="general-memo-box">
-                <label>Memo / Direção da Cena:</label>
-                <textarea placeholder="Escreva as anotações gerais da cena aqui..."></textarea>
-            </div>
-        </div>
-
-        <div class="table-scroll" id="scrollContainer">
-            <canvas id="drawLayer"></canvas>
-            <table id="xsheetTable">
-                <colgroup>
-                    <col style="width: 20px;"> <col style="width: 28px;"> <col style="width: 24px;"> <col style="width: 24px;"> <col style="width: 24px;"> <col style="width: 24px;"> <col style="width: 24px;"> <col style="width: 24px;"> <col style="width: 24px;"> <col style="width: 100px;"> <col style="width: 35px;"> <col style="width: 35px;"> </colgroup>
-                <thead>
-                    <tr>
-                        <th rowspan="2">Sec</th>
-                        <th rowspan="2">Fr</th>
-                        <th colspan="7"></th>
-                        <th rowspan="2" style="background: #ffffcc;">Dialog</th>
-                        <th colspan="2">Camera</th>
-                    </tr>
-                    <tr>
-                        <th style="position: relative;">BG
-                            <input type="text" class="book-input" id="bk-bg-a" placeholder="Bk">
-                        </th>
-                        <th style="position: relative;">A
-                            <input type="text" class="book-input" id="bk-a-b" placeholder="Bk">
-                        </th>
-                        <th style="position: relative;">B
-                            <input type="text" class="book-input" id="bk-b-c" placeholder="Bk">
-                        </th>
-                        <th style="position: relative;">C
-                            <input type="text" class="book-input" id="bk-c-d" placeholder="Bk">
-                        </th>
-                        <th style="position: relative;">D
-                            <input type="text" class="book-input" id="bk-d-e" placeholder="Bk">
-                        </th>
-                        <th style="position: relative;">E
-                            <input type="text" class="book-input" id="bk-e-f" placeholder="Bk">
-                        </th>
-                        <th>F</th>
-                    </tr>
-                </thead>
-                <tbody id="xsheetBody"></tbody>
-            </table>
-        </div>
+    <!-- Tactical 3D Compass Box -->
+    <div class="hud-compass-box" id="compassBox" title="Bússola Tática 3D (Clique para alinhar ao Norte)">
+      <canvas id="compassCanvas" width="80" height="80"></canvas>
+      <div class="compass-tag">BÚSSOLA 3D</div>
     </div>
 
-    <script>
-        const fps = 24;
-        const totalFrames = 1000; 
-        
-        const canvas = document.getElementById('animVisor');
-        const ctx = canvas.getContext('2d');
-        const xsheetBody = document.getElementById('xsheetBody');
-        const xsheetTable = document.getElementById('xsheetTable');
-        const thumbnailStrip = document.getElementById('thumbnailStrip');
-        const drawLayer = document.getElementById('drawLayer');
-        const ctxDraw = drawLayer.getContext('2d');
-        const scrollContainer = document.getElementById('scrollContainer');
+    <!-- Live Reticle & Telemetry Overlay -->
+    <div class="telemetry-floating" id="telemBar">
+      <div class="telem-row">
+        <span id="telemLabelMode">INSPEÇÃO DE COORDENADA:</span>
+        <span class="telem-highlight" id="telemCoords">X: 0m | Y: 0m | Z: +3.400m</span>
+      </div>
+      <div class="telem-row">
+        <span>LOCALIZAÇÃO / CAMADA:</span>
+        <span class="telem-highlight" id="telemLayer">ZONA FLUTUANTE (COTA +3.400m)</span>
+      </div>
+      <div class="telem-row">
+        <span>QUADRANTE DETECTADO:</span>
+        <span class="telem-highlight" id="telemQuadrant">QI - AURORA (NORDESTE)</span>
+      </div>
+      <div class="telem-row" style="margin-top: 4px; padding-top: 4px; border-top: 1px dashed var(--border-dim);">
+        <span>VELOCIDADE DO VENTO:</span>
+        <span class="telem-wind-val" id="telemWind">CALCULANDO...</span>
+      </div>
+      <div class="telem-vector" id="telemVector">
+        VETOR NÁUTICO: [QI - AURORA] + [ZONA FLUTUANTE] + COTA [+3.400m]
+      </div>
+    </div>
 
-        let imageBank = {};
-        let currentFrame = 1;
-        let isPlaying = false;
-        let isDrawingMode = false;
-        let isPainting = false;
-        let playInterval;
+    <!-- Collapsible Elevation Profile Drawer (2D Cross-section) -->
+    <div class="profile-drawer collapsed" id="profileDrawer">
+      <div class="profile-header" id="profileHeader">
+        <div class="profile-title">
+          <span>CORTE TRANSVERSAL DE ELEVAÇÃO 2D & DERIVA // TRAJETÓRIA [A ➔ B]</span>
+          <span class="profile-subtitle" id="profileSubtitle">CARREGANDO...</span>
+        </div>
+        <div class="profile-actions">
+          <button class="btn-mini" id="btnCollapseProfile" style="width: auto; padding: 2px 10px;">▲ EXPANDIR</button>
+        </div>
+      </div>
+      <div class="profile-canvas-container" id="profileCanvasContainer">
+        <canvas id="profileCanvas"></canvas>
+      </div>
+    </div>
+  </div>
 
-        function buildXSheet() {
-            for (let i = 1; i <= totalFrames; i++) {
-                let row = document.createElement('tr');
-                row.id = `frame-${i}`;
-                let secText = (i % 24 === 0) ? (i / 24) + 's' : '';
-                row.innerHTML += `<td class="sec-col">${secText}</td>`;
-                row.innerHTML += `<td class="frame-col" onclick="goToFrame(${i})">${i}</td>`;
-                row.innerHTML += `<td class="editable-col col-bg" contenteditable="true"></td>`;
-                row.innerHTML += `<td class="editable-col col-a" contenteditable="true"></td>`;
-                row.innerHTML += `<td class="editable-col col-b" contenteditable="true"></td>`;
-                row.innerHTML += `<td class="editable-col col-c" contenteditable="true"></td>`;
-                row.innerHTML += `<td class="editable-col col-d" contenteditable="true"></td>`;
-                row.innerHTML += `<td class="editable-col col-e" contenteditable="true"></td>`;
-                row.innerHTML += `<td class="editable-col col-f" contenteditable="true"></td>`;
-                row.innerHTML += `<td class="editable-col memo-col" contenteditable="true"></td>`;
-                row.innerHTML += `<td class="editable-col" contenteditable="true"></td>`; 
-                row.innerHTML += `<td class="editable-col" contenteditable="true"></td>`; 
-                xsheetBody.appendChild(row);
-            }
-            setTimeout(syncDrawCanvasSize, 50);
-        }
+  <!-- Tactical Sidebar -->
+  <aside class="hud-sidebar">
+    <!-- Cursor Altitude / Sonde Controller -->
+    <div class="panel-block" style="background:#09141d; border-bottom: 2px solid var(--accent-cyan);">
+      <div class="panel-header">
+        SONDA DE ALTITUDE / CURSOR (Z)
+        <span id="labelCursorZ" style="color:var(--accent-cyan); font-weight:700;">+3.400 m</span>
+      </div>
+      <div style="font-size:10px; color:var(--text-muted); line-height:1.2;">
+        Mova a cota Z para navegar pelas camadas e visualizar a dispersão do vento nas alturas. (Dica: Shift + Scroll no mapa).
+      </div>
+      <div class="hud-slider-container">
+        <div class="hud-slider-row">
+          <input type="range" id="inputCursorZ" class="hud-slider" min="0" max="16000" step="100" value="3400">
+        </div>
+        <div class="preset-btn-row" style="grid-template-columns: repeat(5, 1fr);">
+          <button class="btn-mini" onclick="setCursorAltitude(500)">500m</button>
+          <button class="btn-mini" onclick="setCursorAltitude(1500)">1.5km</button>
+          <button class="btn-mini" onclick="setCursorAltitude(3500)">3.5km</button>
+          <button class="btn-mini" onclick="setCursorAltitude(8000)">8.0km</button>
+          <button class="btn-mini" onclick="setCursorAltitude(14000)">14km</button>
+        </div>
+      </div>
+    </div>
 
-        function syncDrawCanvasSize() {
-            let tempCanvas = document.createElement('canvas');
-            if (drawLayer.width > 0 && drawLayer.height > 0) {
-                tempCanvas.width = drawLayer.width;
-                tempCanvas.height = drawLayer.height;
-                tempCanvas.getContext('2d').drawImage(drawLayer, 0, 0);
-            }
-            
-            drawLayer.width = xsheetTable.offsetWidth;
-            drawLayer.height = xsheetTable.offsetHeight;
-            drawLayer.style.width = xsheetTable.offsetWidth + 'px';
-            drawLayer.style.height = xsheetTable.offsetHeight + 'px';
-            
-            if (tempCanvas.width > 0) {
-                ctxDraw.drawImage(tempCanvas, 0, 0);
-            }
-        }
+	<!-- NOVOS CONTROLES: OPACIDADE E GROSSURA DO VENTO/SONDA -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--border-dim);">
+          <div>
+            <div style="display:flex; justify-content:space-between; font-size:9px; color:var(--text-muted); margin-bottom:3px;">
+              <span>OPACIDADE:</span>
+              <span id="labelSondeOpacity" style="color:var(--accent-cyan); font-weight:700;">85%</span>
+            </div>
+            <input type="range" id="inputSondeOpacity" class="hud-slider" min="0.1" max="1.0" step="0.05" value="0.85" style="width:100%;">
+          </div>
+          <div>
+            <div style="display:flex; justify-content:space-between; font-size:9px; color:var(--text-muted); margin-bottom:3px;">
+              <span>GROSSURA:</span>
+              <span id="labelSondeThickness" style="color:var(--accent-cyan); font-weight:700;">1.8x</span>
+            </div>
+            <input type="range" id="inputSondeThickness" class="hud-slider" min="0.5" max="5.0" step="0.1" value="1.8" style="width:100%;">
+          </div>
+        </div>
 
-        buildXSheet();
+    <!-- Flight Vector, Trajectory 3D & Wind Drift Simulator -->
+    <div class="panel-block" style="background: rgba(15, 28, 38, 0.55); border-left: 3px solid var(--accent-emerald);">
+      <div class="panel-header">
+        SIMULADOR DE NAVEGAÇÃO & DERIVA EÓLICA
+        <span style="color:var(--accent-emerald)">ETA & ROTA ÓTIMA</span>
+      </div>
+      <div class="vector-calc-box">
+        <div>
+          <label class="form-label">ORIGEM (A)</label>
+          <select id="selPointA" class="hud-select"></select>
+        </div>
+        <div>
+          <label class="form-label">DESTINO (B)</label>
+          <select id="selPointB" class="hud-select"></select>
+        </div>
+      </div>
 
-        // ATUALIZAÇÃO DO VISOR AO EDITAR UM BOOK
-        document.querySelectorAll('.book-input').forEach(input => {
-            input.addEventListener('input', updateVisor);
-        });
+      <div class="vector-calc-box" style="margin-top: 2px;">
+        <div>
+          <label class="form-label">VEL. CRUZEIRO (KM/H)</label>
+          <input type="number" id="inputAirspeed" class="hud-input" min="20" max="1200" step="10" value="180">
+        </div>
+        <div>
+          <label class="form-label">MODO DE TRAJETÓRIA</label>
+          <select id="selRouteMode" class="hud-select">
+            <option value="OPTIMAL" selected>⚡ ROTA ÓTIMA (EÓLICA)</option>
+            <option value="DIRECT">📏 ROTA DIRETA (RETA)</option>
+          </select>
+        </div>
+      </div>
 
-        // SELEÇÃO E COPY/PASTE (MANTIDO DO ANTERIOR)
-        let isSelectingCells = false;
-        let startCellCoords = null;
-        let endCellCoords = null;
+      <div class="distance-report">
+        <div class="report-line">
+          <span style="color:var(--text-muted)">DISTÂNCIA DA ROTA:</span>
+          <span style="color:var(--accent-cyan); font-weight:700;" id="calcDist3D">0 m</span>
+        </div>
+        <div class="report-line">
+          <span style="color:var(--text-muted)">DIST. PLANAR / ΔZ:</span>
+          <span id="calcDist2DAndZ">0 km / 0 m</span>
+        </div>
+        <div class="report-line">
+          <span style="color:var(--text-muted)">ÂNGULO MÉDIO DE RAMPA:</span>
+          <span id="calcPitchAngle" style="color:var(--accent-amber)">0.0°</span>
+        </div>
 
-        xsheetTable.addEventListener('mousedown', (e) => {
-            if (isDrawingMode) return;
-            if (e.target.classList.contains('editable-col')) {
-                if (e.button !== 0) return; 
-                isSelectingCells = true;
-                startCellCoords = { r: e.target.parentElement.rowIndex, c: e.target.cellIndex };
-                endCellCoords = { r: e.target.parentElement.rowIndex, c: e.target.cellIndex };
-                drawCellSelection();
-            }
-        });
+        <div class="report-divider"></div>
 
-        xsheetTable.addEventListener('mouseover', (e) => {
-            if (isSelectingCells && e.target.classList.contains('editable-col')) {
-                endCellCoords = { r: e.target.parentElement.rowIndex, c: e.target.cellIndex };
-                window.getSelection().removeAllRanges(); 
-                drawCellSelection();
-            }
-        });
+        <div class="report-line">
+          <span style="color:var(--text-muted)">COMPONENTE EÓLICA MÉDIA:</span>
+          <span id="calcWindEffect" style="font-weight:700;">0 km/h</span>
+        </div>
+        <div class="report-line">
+          <span style="color:var(--text-muted)">VEL. EFETIVA (SOLO):</span>
+          <span id="calcGroundSpeed" style="color:#fff; font-weight:700;">0 km/h</span>
+        </div>
+        <div class="report-line">
+          <span style="color:var(--text-muted)">TEMPO ESTIMADO (ETA):</span>
+          <span id="calcETA" style="color:var(--accent-emerald); font-weight:700; font-size:12px;">--</span>
+        </div>
+        <div class="report-line">
+          <span style="color:var(--text-muted)">GANHO ROTA ÓTIMA:</span>
+          <span id="calcOptimalGain" style="color:var(--accent-cyan); font-size:10px;">--</span>
+        </div>
+        <div class="report-line" style="margin-top:2px;">
+          <span style="color:var(--text-muted)">DIAGNÓSTICO DE VOO:</span>
+          <span id="calcFlightStatus" class="sim-status-badge" style="background:rgba(0,255,170,0.15); color:var(--accent-emerald);">ESTÁVEL</span>
+        </div>
+      </div>
+    </div>
 
-        window.addEventListener('mouseup', () => isSelectingCells = false);
+    <!-- Square PNG Zone Images (1000x1000) -->
+    <div class="panel-block">
+      <div class="panel-header">
+        MAPAS DE ZONA (PNG 1000x1000)
+        <span id="zoneImgCounter">PADRÃO (ORIGINAL)</span>
+      </div>
+      <div style="font-size:10px; color:var(--text-muted); line-height: 1.3;">
+        Adicione uma imagem PNG quadrada (1000x1000 px) em cada zona e ajuste a opacidade. Zonas com imagem são exibidas sem cor de preenchimento, apenas com a borda colorida.
+      </div>
+      <div id="zoneImagesContainer" style="display:flex; flex-direction:column; gap:6px; margin-top:4px;"></div>
+    </div>
 
-        xsheetBody.addEventListener('focusin', (e) => {
-            if (e.target.classList.contains('editable-col') && !isSelectingCells) {
-                document.querySelectorAll('.selected-cell').forEach(c => c.classList.remove('selected-cell'));
-                e.target.classList.add('selected-cell');
-                startCellCoords = { r: e.target.parentElement.rowIndex, c: e.target.cellIndex };
-                endCellCoords = { r: e.target.parentElement.rowIndex, c: e.target.cellIndex };
-            }
-        });
+    <!-- Vertical Exaggeration Control (Z Scale) -->
+    <div class="panel-block">
+      <div class="panel-header">
+        EXAGERO VERTICAL (ESCALA Z)
+        <span id="labelZScale" style="color:var(--accent-cyan); font-weight:700;">20.0x</span>
+      </div>
+      <div class="hud-slider-container">
+        <div class="hud-slider-row">
+          <input type="range" id="inputZScale" class="hud-slider" min="1" max="50" step="0.5" value="20">
+        </div>
+        <div class="preset-btn-row">
+          <button class="btn-mini" onclick="setZScale(1)">1x (REAL)</button>
+          <button class="btn-mini" onclick="setZScale(10)">10x</button>
+          <button class="btn-mini" onclick="setZScale(20)">20x</button>
+          <button class="btn-mini" onclick="setZScale(40)">40x</button>
+        </div>
+      </div>
+    </div>
 
-        function drawCellSelection() {
-            document.querySelectorAll('.selected-cell').forEach(c => c.classList.remove('selected-cell'));
-            if (!startCellCoords || !endCellCoords) return;
-            let rMin = Math.min(startCellCoords.r, endCellCoords.r);
-            let rMax = Math.max(startCellCoords.r, endCellCoords.r);
-            let cMin = Math.min(startCellCoords.c, endCellCoords.c);
-            let cMax = Math.max(startCellCoords.c, endCellCoords.c);
-            for (let r = rMin; r <= rMax; r++) {
-                let row = xsheetTable.rows[r];
-                if (!row) continue;
-                for (let c = cMin; c <= cMax; c++) {
-                    let cell = row.cells[c];
-                    if (cell && cell.classList.contains('editable-col')) cell.classList.add('selected-cell');
-                }
-            }
-        }
+    <!-- Altitude Layer Filter Bar -->
+    <div class="panel-block">
+      <div class="panel-header">
+        FILTRAR CAMADA ATMOSFÉRICA
+        <span id="activeLayerLabel">TODAS ATIVAS</span>
+      </div>
+      <div class="layer-button-grid">
+        <button class="layer-toggle-btn active" data-layer="ALL">TODAS</button>
+        <button class="layer-toggle-btn" data-layer="ETHEREAL" style="color:#b45309">ETÉREA</button>
+        <button class="layer-toggle-btn" data-layer="ELEVATED" style="color:#0284c7">ELEVADA</button>
+        <button class="layer-toggle-btn" data-layer="FLOATING" style="color:#059669">FLUTUANTE</button>
+        <button class="layer-toggle-btn" data-layer="TWILIGHT" style="color:#c2410c">CREPUSC.</button>
+        <button class="layer-toggle-btn" data-layer="ABYSSAL" style="color:#dc2626">ABISSAL</button>
+      </div>
+    </div>
 
-        document.addEventListener('copy', (e) => {
-            if (document.activeElement.tagName === 'TEXTAREA' || document.activeElement.tagName === 'INPUT') return;
-            let selected = document.querySelectorAll('.selected-cell');
-            if (selected.length > 0) {
-                if (selected.length === 1 && window.getSelection().toString() !== "") return;
-                let rMin = Infinity, rMax = -Infinity, cMin = Infinity, cMax = -Infinity;
-                selected.forEach(cell => {
-                    let r = cell.parentElement.rowIndex, c = cell.cellIndex;
-                    if(r < rMin) rMin = r; if(r > rMax) rMax = r;
-                    if(c < cMin) cMin = c; if(c > cMax) cMax = c;
-                });
-                let tsv = "";
-                for (let r = rMin; r <= rMax; r++) {
-                    let rowTsv = [];
-                    for (let c = cMin; c <= cMax; c++) {
-                        let cell = xsheetTable.rows[r].cells[c];
-                        rowTsv.push(cell && cell.classList.contains('selected-cell') ? cell.innerText.trim() : "");
-                    }
-                    tsv += rowTsv.join("\t") + "\n";
-                }
-                e.clipboardData.setData('text/plain', tsv);
-                e.preventDefault();
-            }
-        });
+    <!-- Category Filter -->
+    <div class="panel-block">
+      <div class="panel-header">FILTRAR POR CATEGORIA TÁTICA</div>
+      <select id="selCategoryFilter" class="hud-select">
+        <option value="ALL">📍 TODAS AS CATEGORIAS</option>
+        <option value="CAPITAL">👑 CAPITAL</option>
+        <option value="CITY">🏙️ CIDADE</option>
+        <option value="POI">📍 PONTO DE INTERESSE</option>
+        <option value="HIDEOUT">🗝️ ESCONDERIJO</option>
+        <option value="ALERT">⚠️ ALERTA</option>
+        <option value="RUINS">🏚️ RUÍNAS</option>
+        <option value="UNKNOWN">❓ DESCONHECIDO</option>
+      </select>
+    </div>
 
-        document.addEventListener('paste', (e) => {
-            if (document.activeElement.tagName === 'TEXTAREA' || document.activeElement.tagName === 'INPUT') return;
-            let selected = document.querySelectorAll('.selected-cell');
-            if (selected.length === 0) return;
-            let rMin = Infinity, cMin = Infinity;
-            selected.forEach(cell => {
-                let r = cell.parentElement.rowIndex, c = cell.cellIndex;
-                if (r < rMin) { rMin = r; cMin = c; }
-            });
-            let pasteData = (e.clipboardData || window.clipboardData).getData('text');
-            if (!pasteData) return;
-            e.preventDefault();
-            let rows = pasteData.split(/\r\n|\n|\r/);
-            if (rows[rows.length - 1] === "") rows.pop();
-            rows.forEach((rowText, i) => {
-                let cols = rowText.split('\t');
-                let targetRow = xsheetTable.rows[rMin + i];
-                if (targetRow) {
-                    cols.forEach((colText, j) => {
-                        let cell = targetRow.cells[cMin + j];
-                        if (cell && cell.classList.contains('editable-col')) {
-                            cell.innerText = colText;
-                            if (colText.trim() === '/') cell.classList.add('inbetween-mark');
-                            else cell.classList.remove('inbetween-mark');
-                        }
-                    });
-                }
-            });
-            updateVisor();
-        });
+    <!-- Waypoint Registry (Dropdown + Busca Rápida) -->
+    <div class="panel-block" style="padding-bottom: 8px; background: rgba(9, 20, 29, 0.7);">
+      <div class="panel-header">
+        SELETOR RÁPIDO DE WAYPOINT
+        <span id="wpCounter">0 PONTOS</span>
+      </div>
+      <div style="display: flex; gap: 6px;">
+        <input type="text" id="inputSearchWp" class="hud-input" placeholder="🔍 Filtrar por nome..." style="flex:1;">
+        <button class="btn-mini" id="btnToggleWpViewMode" style="flex: 0 0 auto; width: auto; padding: 0 8px;" title="Alternar entre exibir apenas o card selecionado ou a lista inteira">
+          MODO: COMPACTO
+        </button>
+      </div>
+      <div>
+        <label class="form-label">NAVEGAR DIRETO PELO MENU SUSPENSO (AGRUPADO POR ZONA):</label>
+        <select id="selQuickWaypoint" class="hud-select" style="margin-top:2px; border-color: var(--accent-cyan); font-weight:700;"></select>
+      </div>
+    </div>
 
-        document.addEventListener('keydown', (e) => {
-            if (document.activeElement.tagName === 'TEXTAREA' || document.activeElement.tagName === 'INPUT') return;
-            if ((e.key === 'Delete' || e.key === 'Backspace') && !isDrawingMode) {
-                let selected = document.querySelectorAll('.selected-cell');
-                if (selected.length > 1) {
-                    e.preventDefault();
-                    selected.forEach(cell => {
-                        cell.innerText = "";
-                        cell.classList.remove('inbetween-mark');
-                    });
-                    updateVisor();
-                }
-            }
-        });
+    <div class="waypoint-scroll-list" id="wpListContainer"></div>
 
-        // ==========================================
+    <div class="sidebar-bottom-bar">
+      <button class="btn-primary" id="btnOpenNewModal">+ NOVO WAYPOINT</button>
+      <button class="hud-btn" id="btnExportData" title="Salvar dados offline JSON">EXPORTAR</button>
+      <button class="hud-btn" id="btnImportData" title="Carregar arquivo JSON">IMPORTAR</button>
+      <input type="file" id="jsonInputFile" accept=".json" style="display:none;">
+    </div>
+  </aside>
+</div>
 
-        xsheetBody.addEventListener('keydown', (e) => {
-            if (e.target.classList.contains('editable-col') && e.key === 'Enter') {
-                e.preventDefault(); 
-                let cellIndex = e.target.cellIndex; 
-                let targetFrameNum = parseInt(e.target.parentElement.id.replace('frame-', '')) + 3; 
-                if (targetFrameNum <= getDurationInFrames()) {
-                    let targetCell = document.getElementById(`frame-${targetFrameNum}`).cells[cellIndex];
-                    if (targetCell) { targetCell.focus(); targetCell.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
-                } else { e.target.blur(); }
-            }
-        });
+<!-- Modal Dialog -->
+<div class="modal-overlay" id="wpModalOverlay">
+  <div class="modal-window">
+    <div class="modal-title" id="modalHeading">REGISTRAR PONTO NÁUTICO</div>
 
-        xsheetBody.addEventListener('input', (e) => {
-            if (e.target.classList.contains('editable-col')) {
-                let text = e.target.innerText.trim();
-                if (text === '/') e.target.classList.add('inbetween-mark');
-                else e.target.classList.remove('inbetween-mark');
-            }
-        });
+    <div class="form-row">
+      <label class="form-label">DESIGNAÇÃO / NOME</label>
+      <input type="text" id="inputWpName" class="hud-input" placeholder="Ex: Cidadela de Mura" maxlength="32">
+    </div>
 
-        function getDrawPos(e) {
-            const rect = drawLayer.getBoundingClientRect();
-            return { x: (e.clientX - rect.left) * (drawLayer.width / rect.width), y: (e.clientY - rect.top) * (drawLayer.height / rect.height) };
-        }
+    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 8px;">
+      <div class="form-row">
+        <label class="form-label">CATEGORIA</label>
+        <select id="inputWpCategory" class="hud-select">
+          <option value="CAPITAL">👑 CAPITAL</option>
+          <option value="CITY">🏙️ CIDADE</option>
+          <option value="POI" selected>📍 PONTO DE INTERESSE</option>
+          <option value="HIDEOUT">🗝️ ESCONDERIJO</option>
+          <option value="ALERT">⚠️ ALERTA</option>
+          <option value="RUINS">🏚️ RUÍNAS</option>
+          <option value="UNKNOWN">❓ DESCONHECIDO</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label class="form-label">ÍCONE / EMOJI</label>
+        <input type="text" id="inputWpCustomIcon" class="hud-input" placeholder="📍" maxlength="4" style="text-align:center; font-size:13px;">
+      </div>
+    </div>
 
-        document.getElementById('btnDraw').addEventListener('click', function() {
-            isDrawingMode = !isDrawingMode;
-            this.classList.toggle('active');
-            scrollContainer.classList.toggle('drawing-mode');
-        });
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+      <div class="form-row">
+        <label class="form-label">EIXO X (LATITUDE / metros)</label>
+        <input type="number" id="inputWpX" class="hud-input" step="5000" value="0">
+      </div>
+      <div class="form-row">
+        <label class="form-label">EIXO Y (LONGITUDE / metros)</label>
+        <input type="number" id="inputWpY" class="hud-input" step="5000" value="0">
+      </div>
+    </div>
 
-        document.getElementById('btnClearDraw').addEventListener('click', () => ctxDraw.clearRect(0, 0, drawLayer.width, drawLayer.height));
+    <div class="form-row">
+      <label class="form-label">COTA Z (ALTITUDE 0 - 16.000m / 16 km)</label>
+      <input type="number" id="inputWpZ" class="hud-input" min="0" max="16000" step="100" value="3400">
+    </div>
 
-        drawLayer.addEventListener('mousedown', (e) => {
-            if (!isDrawingMode) return;
-            isPainting = true;
-            ctxDraw.beginPath(); ctxDraw.lineWidth = 2; ctxDraw.lineCap = 'round'; ctxDraw.strokeStyle = '#2196F3';
-            let pos = getDrawPos(e); ctxDraw.moveTo(pos.x, pos.y);
-        });
+    <div class="form-row">
+      <label class="form-label">COR DO PONTO NO MAPA</label>
+      <div class="color-picker-row">
+        <div class="color-swatch-list" id="colorSwatchesContainer"></div>
+        <input type="color" id="inputWpCustomColor" class="color-input-custom" value="#0284c7" title="Personalizar cor">
+      </div>
+    </div>
 
-        drawLayer.addEventListener('mousemove', (e) => {
-            if (!isPainting || !isDrawingMode) return;
-            let pos = getDrawPos(e); ctxDraw.lineTo(pos.x, pos.y); ctxDraw.stroke();
-        });
+    <div style="display: flex; gap: 8px; margin-top: 6px;">
+      <button class="btn-primary" id="btnSaveWp">SALVAR</button>
+      <button class="hud-btn" style="flex:1" id="btnCancelModal">CANCELAR</button>
+    </div>
+  </div>
+</div>
 
-	
-		
-        window.addEventListener('mouseup', () => isPainting = false);
-		
-		// Variável de estado para saber se estamos no meio de um arrasto na coluna de frames
-let isScrubbingFrames = false;
-
-// 1. Inicia o scrub quando o mouse é pressionado na coluna de frames
-xsheetTable.addEventListener('mousedown', (e) => {
-    // Ignora se estivermos no modo de desenho
-    if (isDrawingMode) return;
-    
-    // Verifica se o alvo do clique tem a classe 'frame-col'
-    if (e.target.classList.contains('frame-col')) {
-        // Ignora cliques com o botão direito (button !== 0)
-        if (e.button !== 0) return; 
-        
-        isScrubbingFrames = true;
-        document.body.classList.add('scrubbing-active'); 
-        
-        // Vai para o frame em que o usuário acabou de clicar
-        let frame = parseInt(e.target.innerText);
-        if (!isNaN(frame)) goToFrame(frame);
-        
-        // Evita que o navegador tente "puxar" os números ou selecionar o texto
-        e.preventDefault(); 
-    }
-});
-
-// 2. Atualiza o visor ao arrastar (passar o mouse por cima) de outras células da mesma coluna
-xsheetTable.addEventListener('mouseover', (e) => {
-    if (isScrubbingFrames && e.target.classList.contains('frame-col')) {
-        let frame = parseInt(e.target.innerText);
-        if (!isNaN(frame)) goToFrame(frame);
-    }
-});
-
-// 3. Cancela o scrub ao soltar o clique em qualquer lugar da tela
-window.addEventListener('mouseup', () => {
-    if (isScrubbingFrames) {
-        isScrubbingFrames = false;
-        document.body.classList.remove('scrubbing-active');
-    }
-});
-		
-        document.getElementById('folderInput').addEventListener('change', function(e) {
-            const files = Array.from(e.target.files);
-            files.sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'}));
-            imageBank = {}; thumbnailStrip.innerHTML = ''; 
-            for (let file of files) {
-                if (file.type.startsWith('image/')) {
-                    let cleanName = file.name.replace(/\.[^/.]+$/, "").toUpperCase().replace(/0+(?=\d)/g, "");
-                    let objectUrl = URL.createObjectURL(file);
-                    let img = new Image(); img.src = objectUrl; imageBank[cleanName] = img;
-                    let thumbCont = document.createElement('div'); thumbCont.className = 'thumbnail-container';
-                    thumbCont.innerHTML = `<div class="thumbnail-label">${cleanName}</div>`;
-                    let thumb = new Image(); thumb.src = objectUrl; thumbCont.appendChild(thumb);
-                    thumbnailStrip.appendChild(thumbCont);
-                }
-            }
-            updateVisor(); 
-        });
-
-        function getDurationInFrames() {
-            const val = document.getElementById('inputDuration').value;
-            if (!val.includes('+')) return 24; 
-            const parts = val.split('+');
-            return (parseInt(parts[0]) || 0) * fps + (parseInt(parts[1]) || 0);
-        }
-
-        function syncTableVisibility() {
-            const max = getDurationInFrames();
-            document.querySelectorAll('#xsheetBody tr').forEach(row => {
-                row.style.display = parseInt(row.id.replace('frame-', '')) > max ? 'none' : 'table-row';
-            });
-            setTimeout(syncDrawCanvasSize, 50);
-        }
-
-        document.getElementById('inputDuration').addEventListener('input', syncTableVisibility);
-        syncTableVisibility(); 
-
-        function getHeldValue(frameNumber, colClass) {
-            for (let i = frameNumber; i >= 1; i--) {
-                let cell = document.querySelector(`#frame-${i} .${colClass}`);
-                if (cell && cell.style.display !== 'none') {
-                    let text = cell.innerText.trim().toUpperCase();
-                    if (text !== "" && text !== "/") return text; 
-                }
-            }
-            return null; 
-        }
-
-        function updateVisor() {
-            document.querySelectorAll('.active-row').forEach(el => el.classList.remove('active-row'));
-            let currentRow = document.getElementById(`frame-${currentFrame}`);
-            if (currentRow) {
-                currentRow.classList.add('active-row');
-                if (isPlaying) currentRow.scrollIntoView({ behavior: 'auto', block: 'center' });
-            }
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            // NOVA ORDEM DE EMPILHAMENTO: Lê dinamicamente os inputs de Book no cabeçalho
-            const layers = [
-                { type: 'cel', cl: 'col-bg', p: 'BG', alpha: 0.5 },
-                { type: 'book', id: 'bk-bg-a', alpha: 0.5 },
-                { type: 'cel', cl: 'col-a', p: 'A', alpha: 1.0 },
-                { type: 'book', id: 'bk-a-b', alpha: 0.5 },
-                { type: 'cel', cl: 'col-b', p: 'B', alpha: 1.0 },
-                { type: 'book', id: 'bk-b-c', alpha: 0.5 },
-                { type: 'cel', cl: 'col-c', p: 'C', alpha: 1.0 },
-                { type: 'book', id: 'bk-c-d', alpha: 0.5 },
-                { type: 'cel', cl: 'col-d', p: 'D', alpha: 1.0 },
-                { type: 'book', id: 'bk-d-e', alpha: 0.5 },
-                { type: 'cel', cl: 'col-e', p: 'E', alpha: 1.0 },
-                { type: 'book', id: 'bk-e-f', alpha: 0.5 },
-                { type: 'cel', cl: 'col-f', p: 'F', alpha: 1.0 }
-            ];
-            
-            layers.forEach((l, i) => {
-                let val = null;
-                
-                if (l.type === 'cel') {
-                    val = getHeldValue(currentFrame, l.cl);
-                } else if (l.type === 'book') {
-                    let bkInput = document.getElementById(l.id);
-                    if (bkInput && bkInput.value.trim() !== "") {
-                        val = bkInput.value.trim().toUpperCase();
-                    }
-                }
-
-                if (val) {
-                    let searchKey = val;
-                    // Auto-completa para "BKX" se o usuário digitar só número no campo do Book
-                    if (l.type === 'book' && /^\d+$/.test(val)) {
-                        searchKey = 'BK' + val;
-                    } else if (l.type === 'cel' && !val.startsWith(l.p)) {
-                        searchKey = l.p + val;
-                    }
-
-                    let img = imageBank[searchKey] || imageBank[val];
-                    if (img) {
-                        ctx.globalCompositeOperation = i > 0 ? 'multiply' : 'source-over';
-                        ctx.globalAlpha = l.alpha;
-                        let s = 0.75, w = img.width * s, h = img.height * s;
-                        ctx.drawImage(img, (canvas.width - w)/2, (canvas.height - h)/2, w, h);
-                        ctx.globalAlpha = 1.0; 
-                    }
-                }
-            });
-        }
-
-        function goToFrame(f) { currentFrame = f; updateVisor(); }
-
-        document.getElementById('btnPlay').addEventListener('click', () => {
-            if (isPlaying) return; isPlaying = true;
-            playInterval = setInterval(() => {
-                currentFrame++;
-                if (currentFrame > getDurationInFrames()) currentFrame = 1; 
-                updateVisor();
-            }, 1000 / fps);
-        });
-
-        document.getElementById('btnPause').addEventListener('click', () => { isPlaying = false; clearInterval(playInterval); });
-        document.getElementById('btnStop').addEventListener('click', () => {
-            isPlaying = false; clearInterval(playInterval); currentFrame = 1; updateVisor();
-            scrollContainer.scrollTop = 0;
-        });
-
-        updateVisor();
-    </script>
+<script src="app.js"></script>
 </body>
 </html>
