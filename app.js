@@ -309,8 +309,17 @@ const appState = {
     yaw: 45 * (Math.PI / 180),
     pitch: 35 * (Math.PI / 180),
     zoom: 0.00075,
+    targetZoom: null,
     panX: 0,
     panY: 30,
+    targetPanX: null,
+    targetPanY: null,
+    focusX: 0,
+    focusY: 0,
+    focusZ: 0,
+    targetFocusX: null,
+    targetFocusY: null,
+    targetFocusZ: null,
     heightScale: 20.0
   },
   cursorAltitude: 3400,
@@ -384,17 +393,20 @@ const telemBar = document.getElementById('telemBar');
 
 function project3D(x, y, z) {
   const cam = appState.camera;
-  const scaledZ = z * cam.heightScale;
+  // Subtrai o ponto de foco para que a câmera gire em torno do waypoint focado
+  const dx = x - (cam.focusX || 0);
+  const dy = y - (cam.focusY || 0);
+  const dz = (z - (cam.focusZ || 0)) * cam.heightScale;
 
   const cosYaw = Math.cos(cam.yaw);
   const sinYaw = Math.sin(cam.yaw);
-  const rx = x * cosYaw - y * sinYaw;
-  const ry = x * sinYaw + y * cosYaw;
+  const rx = dx * cosYaw - dy * sinYaw;
+  const ry = dx * sinYaw + dy * cosYaw;
 
   const cosPitch = Math.cos(cam.pitch);
   const sinPitch = Math.sin(cam.pitch);
-  const rz = ry * sinPitch + scaledZ * cosPitch;
-  const depth = ry * cosPitch - scaledZ * sinPitch;
+  const rz = ry * sinPitch + dz * cosPitch;
+  const depth = ry * cosPitch - dz * sinPitch;
 
   const cx = canvas.width / 2 + cam.panX;
   const cy = canvas.height / 2 + cam.panY;
@@ -419,20 +431,19 @@ function unprojectScreenToGround(screenX, screenY, groundZ = 0) {
   const cosYaw = Math.cos(cam.yaw);
   const sinYaw = Math.sin(cam.yaw);
 
-  const scaledZ = groundZ * cam.heightScale;
+  const scaledZ = (groundZ - (cam.focusZ || 0)) * cam.heightScale;
   const safeSin = Math.abs(sinPitch) < 0.001 ? 0.001 : sinPitch;
   const ry = (dy - scaledZ * cosPitch) / safeSin;
   const rx = dx;
 
-  const x = rx * cosYaw + ry * sinYaw;
-  const y = -rx * sinYaw + ry * cosYaw;
+  const x = rx * cosYaw + ry * sinYaw + (cam.focusX || 0);
+  const y = -rx * sinYaw + ry * cosYaw + (cam.focusY || 0);
 
   return {
     x: Math.round(x),
     y: Math.round(y)
   };
 }
-
 // -------------------------------------------------------------
 // RENDERIZAÇÃO BOTTOM-UP DAS CAMADAS E IMAGENS PNG
 // -------------------------------------------------------------
@@ -1109,6 +1120,111 @@ function renderFlightTrajectory() {
   ctx.restore();
 }
 
+// Função auxiliar que quebra o texto em linhas e desenha a mini-janela tática acima do waypoint
+function drawLorePopup3D(wp, pos3D, wpColor, iconToUse) {
+  if (!wp.desc || !wp.desc.trim()) return;
+
+  ctx.save();
+  ctx.font = '10px Consolas, monospace';
+
+  const maxLineWidth = 220; // Largura máxima do texto dentro da mini-janela (px)
+  const padX = 10;
+  const padY = 8;
+  const lineHeight = 14;
+
+  // Respeita quebras de linha manuais (Enter) e faz word-wrap automático
+  const paragraphs = wp.desc.split('\n');
+  const wrappedLines = [];
+
+  paragraphs.forEach(para => {
+    const words = para.split(' ');
+    let currentLine = '';
+
+    words.forEach(word => {
+      const testLine = currentLine ? `${currentLine} ${word}` : word;
+      if (ctx.measureText(testLine).width > maxLineWidth && currentLine) {
+        wrappedLines.push(currentLine);
+        currentLine = word;
+      } else {
+        currentLine = testLine;
+      }
+    });
+    if (currentLine) wrappedLines.push(currentLine);
+  });
+
+  // Limita a 8 linhas visíveis no balão 3D para não cobrir a tela inteira
+  const displayLines = wrappedLines.slice(0, 8);
+  if (wrappedLines.length > 8) {
+    displayLines[7] += '...';
+  }
+
+  // Calcula dimensões da caixa
+  const headerText = `${iconToUse} ${wp.name.toUpperCase()}`;
+  ctx.font = 'bold 10px Consolas, monospace';
+  let contentW = ctx.measureText(headerText).width;
+
+  ctx.font = '10px Consolas, monospace';
+  displayLines.forEach(line => {
+    const w = ctx.measureText(line).width;
+    if (w > contentW) contentW = w;
+  });
+
+  const boxW = Math.max(160, contentW + padX * 2);
+  const headerH = 20;
+  const boxH = headerH + (displayLines.length * lineHeight) + padY * 2;
+
+  // Posição acima do ícone do waypoint
+  const boxX = pos3D.screenX - boxW / 2;
+  const boxY = pos3D.screenY - 34 - boxH;
+
+  // Seta/Conector ligando o waypoint à mini-janela
+  ctx.beginPath();
+  ctx.moveTo(pos3D.screenX, pos3D.screenY - 22);
+  ctx.lineTo(pos3D.screenX - 6, boxY + boxH);
+  ctx.lineTo(pos3D.screenX + 6, boxY + boxH);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(10, 17, 24, 0.94)';
+  ctx.fill();
+  ctx.strokeStyle = wpColor;
+  ctx.lineWidth = 1.2;
+  ctx.stroke();
+
+  // Fundo escuro tático da mini-janela
+  ctx.fillStyle = 'rgba(10, 17, 24, 0.94)';
+  ctx.fillRect(boxX, boxY, boxW, boxH);
+
+  // Borda iluminada na cor do waypoint e barra lateral de destaque
+  ctx.strokeStyle = wpColor;
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(boxX, boxY, boxW, boxH);
+
+  ctx.fillStyle = wpColor;
+  ctx.fillRect(boxX, boxY, 3, boxH);
+
+  // Cabeçalho da mini-janela
+  ctx.font = 'bold 10px Consolas, monospace';
+  ctx.fillStyle = '#00f0ff';
+  ctx.textAlign = 'left';
+  ctx.fillText(headerText, boxX + padX, boxY + 14);
+
+  // Linha divisória sutil
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(boxX + 6, boxY + headerH);
+  ctx.lineTo(boxX + boxW - 6, boxY + headerH);
+  ctx.stroke();
+
+  // Texto da Lore com quebra de linha
+  ctx.font = '10px Consolas, monospace';
+  ctx.fillStyle = '#d6e8ee';
+  displayLines.forEach((line, idx) => {
+    ctx.fillText(line, boxX + padX, boxY + headerH + padY + 8 + (idx * lineHeight));
+  });
+
+  ctx.restore();
+}
+
 function renderWaypoints3D() {
   const sorted = [...appState.waypoints].sort((a, b) => {
     return project3D(b.x, b.y, b.z).depth - project3D(a.x, a.y, a.z).depth;
@@ -1175,16 +1291,29 @@ function renderWaypoints3D() {
     ctx.textAlign = 'center';
     ctx.fillText(iconToUse, pos3D.screenX, pos3D.screenY - 14);
 
-    ctx.font = 'bold 10px Consolas, monospace';
-    ctx.textAlign = 'left';
-    ctx.fillStyle = '#0f172a';
-    ctx.fillText(wp.name, pos3D.screenX + 12, pos3D.screenY - 2);
-
     ctx.font = 'bold 9px Consolas, monospace';
     ctx.fillStyle = wpColor;
     ctx.fillText(`${formatCota(wp.z)} [${formatCoordKm(wp.x)}, ${formatCoordKm(wp.y)}]`, pos3D.screenX + 12, pos3D.screenY + 9);
     ctx.restore();
   });
+
+  // Desenha a mini-janela de Lore acima do Waypoint selecionado (sempre por cima de tudo)
+  if (appState.selectedWaypointId) {
+    const selWp = appState.waypoints.find(w => w.id === appState.selectedWaypointId);
+    if (selWp && selWp.desc) {
+      const layer = getAltitudeLayer(selWp.z);
+      const visibleLayer = (appState.filterLayer === 'ALL' || layer.id === appState.filterLayer);
+      const visibleCat = (appState.filterCategory === 'ALL' || selWp.category === appState.filterCategory);
+      const visibleSearch = (!appState.searchQuery || selWp.name.toLowerCase().includes(appState.searchQuery.toLowerCase()));
+
+      if (visibleLayer && visibleCat && visibleSearch) {
+        const pos3D = project3D(selWp.x, selWp.y, selWp.z);
+        const wpColor = selWp.color || layer.mapColor || layer.color;
+        const iconToUse = selWp.customIcon || WP_CATEGORIES[selWp.category || 'POI']?.icon || '📍';
+        drawLorePopup3D(selWp, pos3D, wpColor, iconToUse);
+      }
+    }
+  }
 }
 
 function resizeCanvas() {
@@ -1464,6 +1593,8 @@ canvas.addEventListener('mousedown', (e) => {
   appState.mouse.isPanning = (e.button === 2 || e.shiftKey);
   appState.mouse.lastX = e.clientX;
   appState.mouse.lastY = e.clientY;
+  appState.camera.targetPanX = null;
+  appState.camera.targetPanY = null;
 });
 
 window.addEventListener('mouseup', () => {
@@ -1532,6 +1663,9 @@ window.addEventListener('mousemove', (e) => {
 function updateLiveHoverTelemetry(x, y, z) {
   const telemLabel = document.getElementById('telemLabelMode');
   if (telemLabel) telemLabel.innerText = 'RASTREAMENTO EM TEMPO REAL:';
+  
+  const loreEl = document.getElementById('telemLore');
+  if (loreEl) loreEl.innerText = 'Inspeção livre de coordenadas';
 
   const quad = getQuadrantInfo(x, y);
   const layer = getAltitudeLayer(z);
@@ -1629,6 +1763,9 @@ function selectWaypoint(id) {
   document.getElementById('telemCoords').innerText = `X: ${wp.x >= 0 ? '+' : ''}${kmX}km (${wp.x.toLocaleString('pt-BR')}m) | Y: ${wp.y >= 0 ? '+' : ''}${kmY}km (${wp.y.toLocaleString('pt-BR')}m) | Z: ${formatCota(wp.z)}`;
   document.getElementById('telemLayer').innerText = `${layer.name.toUpperCase()} (${formatCota(wp.z)} | 🌡️ ${formatTemp(temp)})`;
   document.getElementById('telemQuadrant').innerText = `${quad.name.toUpperCase()} (${quad.cardinal})`;
+
+	const loreEl = document.getElementById('telemLore');
+	if (loreEl) loreEl.innerText = wp.desc ? `"${wp.desc}"` : 'Sem anotações registradas';
 
   const windText = `${wind.total} km/h (Horizontal: ${wind.h} km/h | Vertical: ${wind.v >= 0 ? '+' : ''}${wind.v} km/h)`;
   document.getElementById('telemWind').innerText = windText;
@@ -1855,9 +1992,12 @@ btnToggleWind.addEventListener('click', () => {
 });
 
 document.getElementById('btnResetCamera').addEventListener('click', () => {
-  appState.camera.panX = 0;
-  appState.camera.panY = 30;
-  appState.camera.zoom = 0.00075;
+  appState.camera.targetFocusX = 0;
+  appState.camera.targetFocusY = 0;
+  appState.camera.targetFocusZ = 0;
+  appState.camera.targetPanX = 0;
+  appState.camera.targetPanY = 30;
+  appState.camera.targetZoom = 0.00075;
   render3DScene();
 });
 
@@ -1985,7 +2125,7 @@ if (inputSearchWp) {
 if (selQuickWaypoint) {
   selQuickWaypoint.addEventListener('change', (e) => {
     if (e.target.value) {
-      selectWaypoint(e.target.value);
+      focusOnWaypoint(e.target.value);
     }
   });
 }
@@ -2068,7 +2208,7 @@ function renderWaypointCards() {
     const card = document.createElement('div');
     card.className = `wp-card ${wp.id === appState.selectedWaypointId ? 'selected' : ''}`;
     card.style.borderLeftColor = itemColor;
-    card.innerHTML = `
+    card.innerHTML = `	  	
       <div class="wp-card-head">
         <span class="wp-card-title">${iconToUse} ${wp.name}</span>
         <span class="wp-badge" style="color:${itemColor}; border-color:${itemColor}">${quad.code}</span>
@@ -2083,6 +2223,8 @@ function renderWaypointCards() {
         <button class="btn-mini" onclick="openModal('${wp.id}')">EDITAR</button>
         <button class="btn-mini danger" onclick="deleteWaypoint('${wp.id}')">EXCLUIR</button>
       </div>
+	  <div class="wp-subtext">${layer.name} // ${wpCat.label}</div>${wp.desc ? `<div style="font-size:10px; color:#94a3b8; font-style:italic; padding:3px 0; border-top:1px dotted var(--border-dim);">📜 "${wp.desc}"</div>` : ''}
+      <div class="wp-actions">
     `;
 
     card.addEventListener('click', (e) => {
@@ -2099,8 +2241,17 @@ window.focusOnWaypoint = function(id) {
   selectWaypoint(id);
   const wp = appState.waypoints.find(w => w.id === id);
   if (!wp) return;
-  appState.camera.panX = 0;
-  appState.camera.panY = 0;
+
+  const cam = appState.camera;
+  cam.targetFocusX = wp.x;
+  cam.targetFocusY = wp.y;
+  cam.targetFocusZ = wp.z;
+  cam.targetPanX = 0;
+  cam.targetPanY = 0;
+  // Dá um zoom in tático se a câmera estiver muito afastada
+  cam.targetZoom = Math.max(cam.zoom, 0.0018);
+
+  setCursorAltitude(wp.z);
   render3DScene();
 };
 
@@ -2109,6 +2260,7 @@ window.deleteWaypoint = function(id) {
   if (appState.selectedWaypointId === id) {
     appState.selectedWaypointId = appState.waypoints[0]?.id || null;
   }
+  saveToLocalStorage();
   populateSelectDropdowns();
   renderWaypointCards();
   render3DScene();
@@ -2120,6 +2272,7 @@ const inputName = document.getElementById('inputWpName');
 const inputX = document.getElementById('inputWpX');
 const inputY = document.getElementById('inputWpY');
 const inputZ = document.getElementById('inputWpZ');
+const inputDesc = document.getElementById('inputWpDesc');
 const inputCategory = document.getElementById('inputWpCategory');
 const inputCustomIcon = document.getElementById('inputCustomIcon') || document.getElementById('inputWpCustomIcon');
 const inputCustomColor = document.getElementById('inputWpCustomColor');
@@ -2179,6 +2332,7 @@ window.openModal = function(editId = null, presetX = 100000, presetY = 100000, p
     inputY.value = wp.y;
     inputZ.value = wp.z;
     setModalColor(wp.color || '#0284c7');
+	if (inputDesc) inputDesc.value = wp.desc || '';
   } else {
     document.getElementById('modalHeading').innerText = 'REGISTRAR PONTO NÁUTICO';
     inputName.value = `Ponto-${Math.floor(100 + Math.random() * 900)}`;
@@ -2188,6 +2342,7 @@ window.openModal = function(editId = null, presetX = 100000, presetY = 100000, p
     inputY.value = Math.round(presetY);
     inputZ.value = Math.round(presetZ);
     setModalColor(PRESET_WAYPOINT_COLORS[Math.floor(Math.random() * PRESET_WAYPOINT_COLORS.length)]);
+	if (inputDesc) inputDesc.value = '';
   }
   modal.classList.add('open');
 };
@@ -2203,7 +2358,8 @@ document.getElementById('btnSaveWp').addEventListener('click', () => {
   const y = parseInt(inputY.value, 10) || 0;
   const z = Math.max(0, Math.min(16000, parseInt(inputZ.value, 10) || 0));
   const color = selectedModalColor || inputCustomColor.value || '#0284c7';
-
+  const desc = inputDesc ? inputDesc.value.trim() : '';
+  
   if (appState.pendingEditId) {
     const wp = appState.waypoints.find(w => w.id === appState.pendingEditId);
     if (wp) {
@@ -2214,14 +2370,16 @@ document.getElementById('btnSaveWp').addEventListener('click', () => {
       wp.y = y;
       wp.z = z;
       wp.color = color;
+      wp.desc = desc;
     }
   } else {
     const newId = Date.now().toString();
-    appState.waypoints.push({ id: newId, name, category, customIcon, x, y, z, color });
+    appState.waypoints.push({ id: newId, name, category, customIcon, x, y, z, color, desc });
     appState.selectedWaypointId = newId;
   }
 
   modal.classList.remove('open');
+  saveToLocalStorage();
   populateSelectDropdowns();
   renderWaypointCards();
   selectWaypoint(appState.selectedWaypointId);
@@ -2247,6 +2405,72 @@ document.getElementById('btnExportData').addEventListener('click', () => {
   URL.revokeObjectURL(url);
 });
 
+// -------------------------------------------------------------
+// EXPORTADOR DE CARTA NÁUTICA (SNAPSHOT PNG COM CARIMBO TÁTICO)
+// -------------------------------------------------------------
+document.getElementById('btnSnapshotPng')?.addEventListener('click', () => {
+  // Garante cena 3D atualizada antes da foto
+  render3DScene();
+
+  const offCanvas = document.createElement('canvas');
+  offCanvas.width = canvas.width;
+  offCanvas.height = canvas.height;
+  const oCtx = offCanvas.getContext('2d');
+
+  // 1. Copia o mapa 3D atual
+  oCtx.drawImage(canvas, 0, 0);
+
+  // 2. Desenha a moldura e o Carimbo Tático no canto inferior esquerdo da imagem
+  const pad = 16;
+  const boxW = 430;
+  const boxH = 112;
+  const boxX = pad;
+  const boxY = offCanvas.height - boxH - pad;
+
+  oCtx.fillStyle = 'rgba(8, 14, 20, 0.92)';
+  oCtx.fillRect(boxX, boxY, boxW, boxH);
+  oCtx.strokeStyle = '#00f0ff';
+  oCtx.lineWidth = 2;
+  oCtx.strokeRect(boxX, boxY, boxW, boxH);
+
+  const selWp = appState.waypoints.find(w => w.id === appState.selectedWaypointId);
+  const z = appState.cursorAltitude;
+  const temp = calculateTemperature(z);
+  const layer = getAltitudeLayer(z);
+
+  oCtx.font = 'bold 11px Consolas, monospace';
+  oCtx.fillStyle = '#00f0ff';
+  oCtx.fillText('CARTA NÁUTICA 3D // ILHAS SOLAR [SM3d-ISOCB]', boxX + 12, boxY + 20);
+
+  oCtx.font = '10px Consolas, monospace';
+  oCtx.fillStyle = '#d6e8ee';
+  oCtx.fillText(`SONDA Z: ${formatCota(z)} (${layer.name}) | TEMP: ${formatTemp(temp)}`, boxX + 12, boxY + 38);
+
+  if (selWp) {
+    oCtx.fillStyle = '#00ffaa';
+    oCtx.fillText(`FOCO: ${selWp.name} [X:${formatCoordKm(selWp.x)}, Y:${formatCoordKm(selWp.y)}]`, boxX + 12, boxY + 56);
+    if (selWp.desc) {
+      oCtx.font = 'italic 10px Consolas, monospace';
+      oCtx.fillStyle = '#ffaa00';
+      oCtx.fillText(`LORE: "${selWp.desc}"`, boxX + 12, boxY + 74);
+    }
+  }
+
+  if (appState.sim.lastResult) {
+    const activeRoute = appState.sim.routeMode === 'OPTIMAL' ? appState.sim.lastResult.optimal : appState.sim.lastResult.direct;
+    oCtx.font = 'bold 10px Consolas, monospace';
+    oCtx.fillStyle = '#38bdf8';
+    oCtx.fillText(`ROTA ATIVA: ${formatDist(activeRoute.totalDistMeters)} | ETA: ${formatETA(activeRoute.totalTimeHours)} (${Math.round(activeRoute.avgGroundSpeed)} km/h)`, boxX + 12, boxY + 94);
+  }
+
+  // 3. Dispara o download do PNG
+  const dataUrl = offCanvas.toDataURL('image/png');
+  const link = document.createElement('a');
+  link.download = `carta_nautica_solar_${Date.now()}.png`;
+  link.href = dataUrl;
+  link.click();
+});
+
 const jsonInput = document.getElementById('jsonInputFile');
 document.getElementById('btnImportData').addEventListener('click', () => jsonInput.click());
 
@@ -2263,6 +2487,7 @@ jsonInput.addEventListener('change', (e) => {
         if (parsed.airspeed !== undefined) {
           document.getElementById('inputAirspeed').value = parsed.airspeed;
         }
+		saveToLocalStorage();
         populateSelectDropdowns();
         renderWaypointCards();
         selectWaypoint(appState.waypoints[0]?.id || '1');
@@ -2274,21 +2499,113 @@ jsonInput.addEventListener('change', (e) => {
   reader.readAsText(file);
 });
 
+// -------------------------------------------------------------
+// AUTO-SAVE LOCAL (LOCALSTORAGE) & LOOP DE ANIMAÇÃO (SMOOTH PAN)
+// -------------------------------------------------------------
+function saveToLocalStorage() {
+  try {
+    const payload = {
+      waypoints: appState.waypoints,
+      cursorAltitude: appState.cursorAltitude,
+      airspeed: appState.sim.airspeed
+    };
+    localStorage.setItem('ilhas_solar_cartografia_v1', JSON.stringify(payload));
+  } catch (e) {
+    console.warn('Não foi possível salvar no localStorage:', e);
+  }
+}
+
+function loadFromLocalStorage() {
+  try {
+    const raw = localStorage.getItem('ilhas_solar_cartografia_v1');
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    if (Array.isArray(data.waypoints) && data.waypoints.length > 0) {
+      appState.waypoints = data.waypoints;
+    }
+    if (data.cursorAltitude !== undefined) {
+      appState.cursorAltitude = data.cursorAltitude;
+    }
+    if (data.airspeed !== undefined) {
+      appState.sim.airspeed = data.airspeed;
+      const airInput = document.getElementById('inputAirspeed');
+      if (airInput) airInput.value = data.airspeed;
+    }
+  } catch (e) {
+    console.warn('Erro ao ler localStorage:', e);
+  }
+}
+
 function animLoop(timestamp) {
   appState.animTime = timestamp * 0.001;
-  if (appState.showWindFlow || appState.sim.lastResult) {
+  let cameraMoving = false;
+  const cam = appState.camera;
+
+  // Interpolação suave do Pivô 3D (X, Y, Z)
+  if (cam.targetFocusX !== null) {
+    const dfx = cam.targetFocusX - cam.focusX;
+    const dfy = cam.targetFocusY - cam.focusY;
+    const dfz = cam.targetFocusZ - cam.focusZ;
+    if (Math.hypot(dfx, dfy, dfz) > 10) {
+      cam.focusX += dfx * 0.12;
+      cam.focusY += dfy * 0.12;
+      cam.focusZ += dfz * 0.12;
+      cameraMoving = true;
+    } else {
+      cam.focusX = cam.targetFocusX;
+      cam.focusY = cam.targetFocusY;
+      cam.focusZ = cam.targetFocusZ;
+      cam.targetFocusX = null;
+      cam.targetFocusY = null;
+      cam.targetFocusZ = null;
+      cameraMoving = true;
+    }
+  }
+
+  // Interpolação suave do Pan 2D
+  if (cam.targetPanX !== null && cam.targetPanY !== null) {
+    const dx = cam.targetPanX - cam.panX;
+    const dy = cam.targetPanY - cam.panY;
+    if (Math.hypot(dx, dy) > 0.5) {
+      cam.panX += dx * 0.14;
+      cam.panY += dy * 0.14;
+      cameraMoving = true;
+    } else {
+      cam.panX = cam.targetPanX;
+      cam.panY = cam.targetPanY;
+      cam.targetPanX = null;
+      cam.targetPanY = null;
+      cameraMoving = true;
+    }
+  }
+
+  // Interpolação suave do Zoom
+  if (cam.targetZoom !== null) {
+    const dzoom = cam.targetZoom - cam.zoom;
+    if (Math.abs(dzoom) > 0.00001) {
+      cam.zoom += dzoom * 0.12;
+      cameraMoving = true;
+    } else {
+      cam.zoom = cam.targetZoom;
+      cam.targetZoom = null;
+      cameraMoving = true;
+    }
+  }
+
+  if (appState.showWindFlow || appState.sim.lastResult || cameraMoving) {
     render3DScene();
   }
   requestAnimationFrame(animLoop);
 }
 
 window.onload = function() {
+  loadFromLocalStorage();
   resizeCanvas();
   resizeProfileCanvas();
   populateSelectDropdowns();
   renderZoneImageControls();
   renderWaypointCards();
-  setCursorAltitude(3400);
-  selectWaypoint('1');
+  setCursorAltitude(appState.cursorAltitude || 3400);
+  selectWaypoint(appState.waypoints[0]?.id || '1');
   requestAnimationFrame(animLoop);
 };
