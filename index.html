@@ -802,6 +802,9 @@
         <button class="hud-btn" id="btnToggleStems">
           <span>│</span> HASTES DE PROJEÇÃO Z
         </button>
+		<button class="hud-btn" id="btnSnapshotPng" title="Exportar imagem PNG da visão 3D com carimbo de telemetria" style="border-color: var(--accent-emerald); color: var(--accent-emerald);">
+          <span>📷</span> CAPTURAR CARTA (PNG)
+        </button>
       </div>
     </div>
 
@@ -824,6 +827,10 @@
       <div class="telem-row">
         <span>QUADRANTE DETECTADO:</span>
         <span class="telem-highlight" id="telemQuadrant">QI - AURORA (NORDESTE)</span>
+      </div>
+	  <div class="telem-row">
+        <span>REGISTRO / LORE:</span>
+        <span id="telemLore" style="color:var(--accent-amber); font-style:italic;">--</span>
       </div>
       <div class="telem-row" style="margin-top: 4px; padding-top: 4px; border-top: 1px dashed var(--border-dim);">
         <span>VELOCIDADE DO VENTO:</span>
@@ -1100,6 +1107,11 @@
       <input type="number" id="inputWpZ" class="hud-input" min="0" max="16000" step="100" value="3400">
     </div>
 
+	<div class="form-row">
+      <label class="form-label">DIÁRIO DE BORDO / NOTAS DE LORE</label>
+      <textarea id="inputWpDesc" class="hud-input" rows="5" placeholder="Escreva a história, perigos locais, facções ou anotações detalhadas deste ponto..." maxlength="600" style="resize: vertical; min-height: 85px; line-height: 1.4; font-family: inherit;"></textarea>
+    </div>
+		
     <div class="form-row">
       <label class="form-label">COR DO PONTO NO MAPA</label>
       <div class="color-picker-row">
